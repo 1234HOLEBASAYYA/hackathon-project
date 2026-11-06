@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MedVision-AI | Enterprise Multi-Modal Diagnostic Platform</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <a href="/index.html" class="nav-brand">
+      <div class="brand-icon">M</div>
+      <div>
+        <div class="brand-title">MEDVISION<span>-AI</span></div>
+        <span class="brand-subtitle">Clinical Intelligence Suite</span>
+      </div>
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="/index.html" class="nav-link active">Hub</a></li>
+      <li><a href="/prescription.html" class="nav-link">Prescriptions</a></li>
+      <li><a href="/xray.html" class="nav-link">X-Ray Analysis</a></li>
+      <li><a href="/ct-scan.html" class="nav-link">CT Clinical Vision</a></li>
+      <li><a href="/dashboard.html" class="nav-link">Patient Timeline</a></li>
+    </ul>
+
+    <div class="nav-right">
+      <div class="system-status-indicator">
+        <span class="status-dot"></span>
+        <span class="system-status-text">Checking Services...</span>
+      </div>
+
+      <div class="patient-badge">
+        <div class="patient-avatar">P</div>
+        <div class="patient-info">
+          <span class="patient-name active-patient-name">Loading...</span>
+          <span class="patient-id-tag active-patient-id">...</span>
+        </div>
+        <button class="btn-switch-patient" onclick="App.openPatientModal()" title="Switch active patient">🔄</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content Container -->
+  <main class="app-container">
+    <header class="hero-header">
+      <h1 class="hero-title">Multi-Modal Clinical Intelligence Workspace</h1>
+      <p class="hero-subtitle">
+        Unified medical decision-support platform integrating Deep Learning Prescription OCR, Multi-Region PyTorch Radiographic Analysis, and Gemini-Powered Clinical CT Vision into a single patient record database.
+      </p>
+    </header>
+
+    <!-- Database Statistics Section -->
+    <section class="grid-5" style="margin-bottom: 2rem;">
+      <div class="stat-card">
+        <div class="stat-icon teal">👥</div>
+        <div>
+          <div class="stat-value" id="statPatients">--</div>
+          <div class="stat-label">Registered Patients</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon cyan">📊</div>
+        <div>
+          <div class="stat-value" id="statTotalAnalyses">--</div>
+          <div class="stat-label">Total Diagnostic Records</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple">📝</div>
+        <div>
+          <div class="stat-value" id="statPrescriptions">--</div>
+          <div class="stat-label">Prescriptions Digitized</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green">🦴</div>
+        <div>
+          <div class="stat-value" id="statXrays">--</div>
+          <div class="stat-label">X-Ray Studies</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon amber">🌀</div>
+        <div>
+          <div class="stat-value" id="statCTs">--</div>
+          <div class="stat-label">CT Slices Evaluated</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modality Selector Cards -->
+    <section class="grid-3" style="margin-bottom: 2.5rem;">
+      
+      <!-- Card 1: Prescription OCR -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>📝</span> Prescription Digitizer
+          </div>
+          <span class="badge badge-teal">EasyOCR + BiLSTM</span>
+        </div>
+        <div class="card-body">
+          <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1.25rem; line-height: 1.5;">
+            Converts scanned handwritten and printed doctor prescriptions into structured clinical data with fuzzy pharmacopeia validation, dosage extraction, and editable verification tables.
+          </p>
+          <div style="display: flex; gap: 0.5rem;">
+            <a href="/prescription.html" class="btn btn-primary" style="flex: 1;">Open Workspace &rarr;</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Multi-Region X-Ray AI -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>🦴</span> Multi-Region X-Ray AI
+          </div>
+          <span class="badge badge-purple">ResNet-18 + DenseNet</span>
+        </div>
+        <div class="card-body">
+          <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1.25rem; line-height: 1.5;">
+            Anatomical routing across 10 body regions, spatial fracture localization with bounding boxes, side-by-side specimen comparison, and certified ReportLab PDF reports.
+          </p>
+          <div style="display: flex; gap: 0.5rem;">
+            <a href="/xray.html" class="btn btn-purple" style="flex: 1;">Open Workspace &rarr;</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: CT-Scan Clinical Vision -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>🌀</span> CT Clinical Vision
+          </div>
+          <span class="badge badge-green">Gemini 3.5 Multimodal</span>
+        </div>
+        <div class="card-body">
+          <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1.25rem; line-height: 1.5;">
+            Objective visual observation extraction, differential findings with uncertainty flagging, Lanczos antialiased preprocessing, and strict negative document guardrails.
+          </p>
+          <div style="display: flex; gap: 0.5rem;">
+            <a href="/ct-scan.html" class="btn btn-green" style="flex: 1;">Open Workspace &rarr;</a>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Active Patient Profile & Recent Studies Grid -->
+    <div class="grid-2" style="margin-bottom: 2rem;">
+      <!-- Active Patient Summary Card -->
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>👤</span> Active Patient Profile
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="App.openPatientModal()">Switch Patient</button>
+        </div>
+        <div class="card-body">
+          <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem;">
+            <div class="patient-avatar" style="width: 48px; height: 48px; font-size: 1.2rem;">P</div>
+            <div>
+              <h3 class="active-patient-name" style="font-size: 1.25rem; font-weight: 700; color: #fff;">Robert Miller</h3>
+              <div style="font-size: 0.8125rem; color: var(--text-secondary);">
+                Patient ID: <span class="active-patient-id" style="font-family: var(--font-mono); color: var(--teal-primary); font-weight: 600;">P-1001</span>
+              </div>
+            </div>
+          </div>
+          <div id="patientDetailsGrid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; font-size: 0.8125rem;">
+            <div style="background: var(--bg-surface-elevated); padding: 0.6rem 0.85rem; border-radius: var(--radius-sm);">
+              <span style="color: var(--text-muted); display: block; font-size: 0.7rem; text-transform: uppercase;">Demographics</span>
+              <strong id="patientDemographics" style="color: var(--text-primary);">58 yrs, Male</strong>
+            </div>
+            <div style="background: var(--bg-surface-elevated); padding: 0.6rem 0.85rem; border-radius: var(--radius-sm);">
+              <span style="color: var(--text-muted); display: block; font-size: 0.7rem; text-transform: uppercase;">Contact</span>
+              <strong id="patientContact" style="color: var(--text-primary);">+1 555-0143</strong>
+            </div>
+            <div style="background: var(--bg-surface-elevated); padding: 0.6rem 0.85rem; border-radius: var(--radius-sm);">
+              <span style="color: var(--text-muted); display: block; font-size: 0.7rem; text-transform: uppercase;">Allergies</span>
+              <strong id="patientAllergies" style="color: var(--rose-primary);">Penicillin</strong>
+            </div>
+            <div style="background: var(--bg-surface-elevated); padding: 0.6rem 0.85rem; border-radius: var(--radius-sm);">
+              <span style="color: var(--text-muted); display: block; font-size: 0.7rem; text-transform: uppercase;">Conditions</span>
+              <strong id="patientConditions" style="color: var(--amber-primary);">Type 2 Diabetes, HTN</strong>
+            </div>
+          </div>
+          <div style="margin-top: 1.25rem;">
+            <a href="/dashboard.html" class="btn btn-outline btn-sm" style="width: 100%;">View Complete Medical Timeline &rarr;</a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Recent Diagnostic Activity Feed -->
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <span>⚡</span> Recent Studies Across All Modalities
+          </div>
+          <a href="/dashboard.html" class="btn btn-outline btn-sm">Full History</a>
+        </div>
+        <div class="card-body">
+          <div id="recentStudiesFeed" style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <div style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading recent studies from database...</div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Patient Selection Modal -->
+  <div id="patientModal" class="modal-backdrop" style="display: none;">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 style="font-size: 1.125rem;">Switch Active Clinical Patient</h3>
+        <button class="btn-switch-patient" onclick="App.closePatientModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Select Patient Preset</label>
+          <select id="modalPatientSelect" class="form-select" onchange="onSelectPatientPreset(this.value)">
+            <option value="P-1001">Robert Miller (58 M, ID: P-1001)</option>
+            <option value="P-1002">Elena Rostova (42 F, ID: P-1002)</option>
+            <option value="P-1003">Marcus Vance (31 M, ID: P-1003)</option>
+          </select>
+        </div>
+        <div style="margin: 1.5rem 0; border-top: 1px solid var(--border-subtle); padding-top: 1rem;">
+          <h4 style="font-size: 0.875rem; margin-bottom: 0.75rem;">Or Register New Patient</h4>
+          <div class="form-group">
+            <input type="text" id="newPatientId" class="form-input" placeholder="Patient ID (e.g. P-2001)" style="margin-bottom: 0.5rem;">
+            <input type="text" id="newPatientName" class="form-input" placeholder="Full Patient Name" style="margin-bottom: 0.5rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+              <input type="number" id="newPatientAge" class="form-input" placeholder="Age">
+              <select id="newPatientGender" class="form-select">
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline btn-sm" onclick="App.closePatientModal()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="handleRegisterPatient()">Save & Set Active</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>MEDVISION-AI Platform &copy; 2026. Designed for clinical decision support, medical research and educational review.</p>
+  </footer>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/patient-manager.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    async function loadDashboardHub() {
+      // 1. Sync Active Patient Profile
+      const patient = window.PatientManager.getActivePatient();
+      document.getElementById('patientDemographics').textContent = `${patient.age || 'N/A'} yrs, ${patient.gender || 'Not specified'}`;
+      document.getElementById('patientContact').textContent = patient.contact || 'No contact on file';
+      document.getElementById('patientAllergies').textContent = (patient.allergies && patient.allergies.length) ? patient.allergies.join(', ') : 'No known allergies';
+      document.getElementById('patientConditions').textContent = (patient.chronicConditions && patient.chronicConditions.length) ? patient.chronicConditions.join(', ') : 'None documented';
+
+      // 2. Load Real-Time Database Statistics
+      try {
+        const statsRes = await window.API.getStats();
+        if (statsRes.status === 'success' && statsRes.data) {
+          const d = statsRes.data;
+          document.getElementById('statPatients').textContent = d.totalPatients;
+          document.getElementById('statTotalAnalyses').textContent = d.totalAnalyses;
+          document.getElementById('statPrescriptions').textContent = d.totalPrescriptions;
+          document.getElementById('statXrays').textContent = d.totalXrays;
+          document.getElementById('statCTs').textContent = d.totalCTs;
+
+          // Render Recent Studies Feed
+          const feed = document.getElementById('recentStudiesFeed');
+          const records = d.recentRecords || [];
+          if (records.length === 0) {
+            feed.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No diagnostic studies logged yet. Use any module above to run an analysis.</div>`;
+          } else {
+            feed.innerHTML = '';
+            records.slice(0, 5).forEach(rec => {
+              const item = document.createElement('div');
+              item.style.cssText = 'background: var(--bg-surface-elevated); padding: 0.75rem 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;';
+              
+              let modBadge = '<span class="badge badge-teal">Prescription</span>';
+              let icon = '📝';
+              if (rec.modality === 'xray') {
+                modBadge = '<span class="badge badge-purple">X-Ray</span>';
+                icon = '🦴';
+              } else if (rec.modality === 'ct_scan') {
+                modBadge = '<span class="badge badge-green">CT Scan</span>';
+                icon = '🌀';
+              }
+
+              const timeAgo = new Date(rec.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ', ' + new Date(rec.createdAt).toLocaleDateString();
+
+              item.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                  <span style="font-size: 1.25rem;">${icon}</span>
+                  <div>
+                    <div style="font-size: 0.85rem; font-weight: 600; color: #fff;">${rec.reportTitle || 'Diagnostic Assessment'}</div>
+                    <div style="font-size: 0.75rem; color: var(--text-muted);">
+                      Patient: <strong style="color: var(--teal-primary);">${rec.patientName || rec.patientId}</strong> (${rec.patientId}) &bull; ${timeAgo}
+                    </div>
+                  </div>
+                </div>
+                <div>${modBadge}</div>
+              `;
+              feed.appendChild(item);
+            });
+          }
+        }
+      } catch (e) {
+        console.warn('Could not load stats:', e);
+      }
+    }
+
+    function onSelectPatientPreset(pid) {
+      const p = window.PatientManager.DEFAULT_PATIENTS.find(item => item.patientId === pid);
+      if (p) {
+        window.PatientManager.setActivePatient(p);
+        window.App.showToast(`Active patient set to ${p.name}`, 'info');
+        window.App.closePatientModal();
+        loadDashboardHub();
+      }
+    }
+
+    async function handleRegisterPatient() {
+      const id = document.getElementById('newPatientId').value.trim();
+      const name = document.getElementById('newPatientName').value.trim();
+      const age = parseInt(document.getElementById('newPatientAge').value, 10) || 30;
+      const gender = document.getElementById('newPatientGender').value;
+
+      if (!id || !name) {
+        window.App.showToast('Please provide both Patient ID and Name', 'error');
+        return;
+      }
+
+      const newPat = { patientId: id, name, age, gender };
+      try {
+        await window.API.createPatient(newPat);
+        window.PatientManager.setActivePatient(newPat);
+        window.App.showToast(`Patient ${name} registered and active!`, 'success');
+        window.App.closePatientModal();
+        loadDashboardHub();
+      } catch (e) {
+        window.App.showToast('Failed to register patient: ' + e.message, 'error');
+      }
+    }
+
+    window.addEventListener('patientChanged', () => loadDashboardHub());
+    document.addEventListener('DOMContentLoaded', () => loadDashboardHub());
+  </script>
+</body>
+</html>
+

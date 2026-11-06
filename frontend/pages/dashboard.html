@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patient Medical Timeline | MedVision-AI</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <a href="/index.html" class="nav-brand">
+      <div class="brand-icon">M</div>
+      <div>
+        <div class="brand-title">MEDVISION<span>-AI</span></div>
+        <span class="brand-subtitle">Clinical Intelligence Suite</span>
+      </div>
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="/index.html" class="nav-link">Hub</a></li>
+      <li><a href="/prescription.html" class="nav-link">Prescriptions</a></li>
+      <li><a href="/xray.html" class="nav-link">X-Ray Analysis</a></li>
+      <li><a href="/ct-scan.html" class="nav-link">CT Clinical Vision</a></li>
+      <li><a href="/dashboard.html" class="nav-link active">Patient Timeline</a></li>
+    </ul>
+
+    <div class="nav-right">
+      <div class="patient-badge">
+        <div class="patient-avatar">P</div>
+        <div class="patient-info">
+          <span class="patient-name active-patient-name">Loading...</span>
+          <span class="patient-id-tag active-patient-id">...</span>
+        </div>
+        <button class="btn-switch-patient" onclick="App.openPatientModal()">🔄</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="app-container">
+    <header class="hero-header">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <h1 class="hero-title">Unified Diagnostic Timeline</h1>
+          <p class="hero-subtitle">
+            Consolidated longitudinal health records across Prescriptions, Radiographs, and CT Scans persisted in
+            MongoDB for <strong class="active-patient-name" style="color: var(--teal-primary);">Patient</strong> (<span
+              class="active-patient-id" style="font-family: var(--font-mono);">ID</span>).
+          </p>
+        </div>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <button class="btn btn-outline btn-sm" onclick="TimelineClient.loadTimeline()">
+            <span>🔄</span> Refresh Timeline
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="TimelineClient.exportRecord()">
+            <span>📥</span> Export Record
+          </button>
+          <button class="btn btn-primary btn-sm" onclick="App.openPatientModal()">
+            <span>👤</span> Switch Patient
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Patient Search & Filter Bar -->
+    <section class="card" style="margin-bottom: 1.5rem;">
+      <div class="card-body" style="padding: 1rem 1.5rem;">
+        <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 260px; position: relative;">
+            <input type="text" id="patientSearchInput" class="form-input"
+              placeholder="🔍 Search patient by ID, name or phone..." oninput="TimelineClient.handleSearch(this.value)">
+          </div>
+          <div style="display: flex; gap: 0.4rem; align-items: center; flex-wrap: wrap;">
+            <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: 600;">Presets:</span>
+            <button class="btn btn-outline btn-sm" onclick="TimelineClient.selectPatientById('P-1001')">P-1001
+              (Robert)</button>
+            <button class="btn btn-outline btn-sm" onclick="TimelineClient.selectPatientById('P-1002')">P-1002
+              (Elena)</button>
+            <button class="btn btn-outline btn-sm" onclick="TimelineClient.selectPatientById('P001')">P001 (Brain
+              CT)</button>
+          </div>
+        </div>
+        <div id="searchResultsDropdown"
+          style="display: none; margin-top: 0.75rem; background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.5rem;">
+        </div>
+      </div>
+    </section>
+
+    <!-- Patient Profile Header Card -->
+    <section class="card" style="margin-bottom: 2rem;">
+      <div class="card-body">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1.5rem;">
+          <div style="display: flex; align-items: center; gap: 1rem;">
+            <div class="patient-avatar" style="width: 52px; height: 52px; font-size: 1.3rem;">P</div>
+            <div>
+              <div
+                style="font-size: 0.72rem; text-transform: uppercase; color: var(--teal-primary); font-weight: 700; letter-spacing: 0.05em;">
+                ACTIVE MEDICAL RECORD</div>
+              <h2 class="active-patient-name"
+                style="font-size: 1.6rem; font-weight: 800; color: #fff; line-height: 1.2;">Robert Miller</h2>
+              <div style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 0.25rem;">
+                Identifier: <strong class="active-patient-id"
+                  style="color: var(--teal-primary); font-family: var(--font-mono);">P-1001</strong> &bull;
+                <span id="headerDemographics">58 yrs, Male</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; gap: 1.5rem; flex-wrap: wrap;">
+            <div style="text-align: center; min-width: 80px;">
+              <div id="statTotalStudies" style="font-size: 1.8rem; font-weight: 800; color: var(--teal-primary);">0
+              </div>
+              <span
+                style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Total
+                Studies</span>
+            </div>
+            <div style="text-align: center; min-width: 80px;">
+              <div id="statPrescriptions" style="font-size: 1.8rem; font-weight: 800; color: var(--cyan-primary);">0
+              </div>
+              <span
+                style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">Prescriptions</span>
+            </div>
+            <div style="text-align: center; min-width: 80px;">
+              <div id="statXrays" style="font-size: 1.8rem; font-weight: 800; color: var(--purple-primary);">0</div>
+              <span
+                style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">X-Rays</span>
+            </div>
+            <div style="text-align: center; min-width: 80px;">
+              <div id="statCTs" style="font-size: 1.8rem; font-weight: 800; color: var(--emerald-primary);">0</div>
+              <span
+                style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; font-weight: 600;">CT
+                Scans</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Modality Filter Chips -->
+    <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap;">
+      <button class="btn btn-sm btn-primary filter-btn" onclick="TimelineClient.setFilter('all', this)">All
+        Modalities</button>
+      <button class="btn btn-sm btn-outline filter-btn"
+        onclick="TimelineClient.setFilter('prescription', this)">Prescriptions</button>
+      <button class="btn btn-sm btn-outline filter-btn" onclick="TimelineClient.setFilter('xray', this)">X-Rays</button>
+      <button class="btn btn-sm btn-outline filter-btn" onclick="TimelineClient.setFilter('ct_scan', this)">CT
+        Scans</button>
+    </div>
+
+    <!-- Timeline Entries Container -->
+    <div id="timelineContainer">
+      <div style="text-align: center; padding: 4rem 1rem; color: var(--text-muted);">
+        <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">⏳</div>
+        <p>Loading medical records from MongoDB...</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- Detailed Report View Modal -->
+  <div id="reportDetailModal" class="modal-backdrop" style="display: none;">
+    <div class="modal" style="max-width: 760px;">
+      <div class="modal-header">
+        <h3 id="modalReportTitle" style="font-size: 1.15rem; color: #fff;">Diagnostic Study Inspection</h3>
+        <button class="btn-switch-patient" onclick="TimelineClient.closeReportModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="modalReportContent">
+          <!-- Filled by TimelineClient -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline btn-sm" onclick="TimelineClient.closeReportModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Patient Selection Modal -->
+  <div id="patientModal" class="modal-backdrop" style="display: none;">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 style="font-size: 1.125rem;">Switch Active Clinical Patient</h3>
+        <button class="btn-switch-patient" onclick="App.closePatientModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Select Patient Preset</label>
+          <select id="modalPatientSelect" class="form-select" onchange="TimelineClient.selectPatientById(this.value)">
+            <option value="P-1001">Robert Miller (58 M, ID: P-1001)</option>
+            <option value="P-1002">Elena Rostova (42 F, ID: P-1002)</option>
+            <option value="P-1003">Marcus Vance (31 M, ID: P-1003)</option>
+            <option value="P001">Demo Patient P001 (Brain Cancer CT Study)</option>
+          </select>
+        </div>
+        <div style="margin: 1.5rem 0; border-top: 1px solid var(--border-subtle); padding-top: 1rem;">
+          <h4 style="font-size: 0.875rem; margin-bottom: 0.75rem;">Or Register New Patient</h4>
+          <div class="form-group">
+            <input type="text" id="newPatientId" class="form-input" placeholder="Patient ID (e.g. P-2001)"
+              style="margin-bottom: 0.5rem;">
+            <input type="text" id="newPatientName" class="form-input" placeholder="Full Patient Name"
+              style="margin-bottom: 0.5rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;">
+              <input type="number" id="newPatientAge" class="form-input" placeholder="Age">
+              <select id="newPatientGender" class="form-select">
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline btn-sm" onclick="App.closePatientModal()">Cancel</button>
+        <button class="btn btn-primary btn-sm" onclick="handleRegisterPatient()">Save & Set Active</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p>MEDVISION-AI &copy; 2026. Unified MongoDB Multi-Modal Patient Persistence Layer.</p>
+  </footer>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/patient-manager.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    const TimelineClient = {
+      currentFilter: 'all',
+      records: [],
+      searchTimeout: null,
+
+      async loadTimeline() {
+        const patient = window.PatientManager.getActivePatient();
+        const container = document.getElementById('timelineContainer');
+        container.innerHTML = `<div style="text-align: center; padding: 3rem; color: var(--text-muted);">Fetching patient records from MongoDB...</div>`;
+
+        // Update demographics tag
+        const demoEl = document.getElementById('headerDemographics');
+        if (demoEl) {
+          demoEl.textContent = `${patient.age || 'N/A'} yrs, ${patient.gender || 'Not specified'}`;
+        }
+
+        try {
+          const res = await window.API.getPatientTimeline(patient.patientId);
+          if (res.status !== 'success') throw new Error(res.message);
+
+          const analyses = res.data.analyses || [];
+          const prescriptions = res.data.prescriptions || [];
+
+          // Counts
+          const rxCount = prescriptions.length + analyses.filter(a => a.modality === 'prescription' && !prescriptions.some(p => p.analysisId === a.analysisId)).length;
+          const xrayCount = analyses.filter(a => a.modality === 'xray' || a.modality === 'chest_xray').length;
+          const ctCount = analyses.filter(a => a.modality === 'ct_scan').length;
+
+          document.getElementById('statTotalStudies').textContent = analyses.length + prescriptions.length;
+          document.getElementById('statPrescriptions').textContent = rxCount;
+          document.getElementById('statXrays').textContent = xrayCount;
+          document.getElementById('statCTs').textContent = ctCount;
+
+          // Merge into unified sorted timeline
+          const items = [];
+          analyses.forEach(a => items.push({ type: 'analysis', ...a }));
+          prescriptions.forEach(p => {
+            if (!items.some(it => it.analysisId === p.analysisId)) {
+              items.push({ type: 'prescription', ...p, modality: 'prescription' });
+            }
+          });
+
+          items.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+          this.records = items;
+          this.render();
+
+        } catch (e) {
+          container.innerHTML = `
+            <div class="card" style="text-align: center; padding: 2.5rem;">
+              <p style="color: var(--rose-primary); margin-bottom: 0.5rem;">Failed to load records from MongoDB</p>
+              <p style="font-size: 0.8125rem; color: var(--text-muted);">${e.message}</p>
+            </div>
+          `;
+        }
+      },
+
+      setFilter(filter, btn) {
+        this.currentFilter = filter;
+        document.querySelectorAll('.filter-btn').forEach(b => {
+          b.className = 'btn btn-sm btn-outline filter-btn';
+        });
+        btn.className = 'btn btn-sm btn-primary filter-btn';
+        this.render();
+      },
+
+      render() {
+        const container = document.getElementById('timelineContainer');
+        let filtered = this.records;
+        if (this.currentFilter !== 'all') {
+          filtered = this.records.filter(r => {
+            if (this.currentFilter === 'prescription') return r.modality === 'prescription' || r.modality === 'prescription_doc';
+            if (this.currentFilter === 'xray') return r.modality === 'xray' || r.modality === 'chest_xray';
+            if (this.currentFilter === 'ct_scan') return r.modality === 'ct_scan';
+            return true;
+          });
+        }
+
+        if (filtered.length === 0) {
+          container.innerHTML = `
+            <div class="card" style="text-align: center; padding: 3rem;">
+              <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">📂</div>
+              <h3 style="font-size: 1.15rem; margin-bottom: 0.25rem; color: #fff;">No Diagnostic Records Found</h3>
+              <p style="color: var(--text-muted); font-size: 0.875rem;">Run an analysis from the Prescription, X-Ray, or CT Scan workspaces to log a clinical record for this patient in MongoDB.</p>
+            </div>
+          `;
+          return;
+        }
+
+        container.innerHTML = '';
+        filtered.forEach(item => {
+          const card = document.createElement('div');
+          card.className = 'card';
+          card.style.marginBottom = '1.35rem';
+
+          const dateStr = new Date(item.createdAt).toLocaleDateString() + ' &bull; ' + new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          let modBadge = '<span class="badge badge-teal">Diagnostic Study</span>';
+          let icon = '🔬';
+
+          if (item.modality === 'prescription' || item.modality === 'prescription_doc') {
+            modBadge = '<span class="badge badge-teal">Prescription OCR</span>';
+            icon = '📝';
+          } else if (item.modality === 'xray' || item.modality === 'chest_xray') {
+            modBadge = '<span class="badge badge-purple">X-Ray Radiograph</span>';
+            icon = '🦴';
+          } else if (item.modality === 'ct_scan') {
+            modBadge = '<span class="badge badge-green">CT Clinical Vision</span>';
+            icon = '🌀';
+          }
+
+          let findingsSnippet = '';
+          let thumbnailImg = '';
+
+          // Determine Thumbnail if available
+          const imgUrl = item.specimenUrl || item.fileMetadata?.storedPath;
+          if (imgUrl) {
+            thumbnailImg = `
+              <div style="width: 90px; height: 90px; background: #0B1320; border-radius: var(--radius-sm); overflow: hidden; border: 1px solid var(--border-subtle); flex-shrink: 0;">
+                <img src="${imgUrl}" alt="Specimen Thumbnail" style="width: 100%; height: 100%; object-fit: cover;">
+              </div>
+            `;
+          }
+
+          if (item.medications && item.medications.length) {
+            findingsSnippet = `
+              <div>
+                <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.35rem;">Prescribed Medications:</div>
+                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap;">
+                  ${item.medications.map(m => `<span class="badge badge-teal">${m.medicineName || m.name} (${m.strength || 'dose'})</span>`).join('')}
+                </div>
+                ${item.diagnosis ? `<div style="font-size: 0.8125rem; color: var(--text-secondary); margin-top: 0.4rem;">Diagnosis: <strong style="color: #fff;">${item.diagnosis}</strong></div>` : ''}
+              </div>
+            `;
+          } else if (item.findings && item.findings.clinicalImpression) {
+            findingsSnippet = `
+              <div>
+                <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.25rem;">Radiological Impression:</div>
+                <p style="font-size: 0.85rem; color: var(--text-secondary);">${item.findings.clinicalImpression}</p>
+                <div style="font-size: 0.75rem; color: var(--teal-primary); margin-top: 0.25rem;">
+                  Region: <strong>${item.findings.anatomicalRegion || 'General'}</strong> &bull; Focus: ${item.findings.affectedBone || 'Normal'}
+                </div>
+              </div>
+            `;
+          } else if (item.findings && item.findings.summary) {
+            findingsSnippet = `
+              <div>
+                <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.25rem;">CT Evaluation Summary:</div>
+                <p style="font-size: 0.85rem; color: var(--text-secondary);">${item.findings.summary}</p>
+              </div>
+            `;
+          }
+
+          card.innerHTML = `
+            <div class="card-header">
+              <div class="card-title">
+                <span>${icon}</span> ${item.reportTitle || 'Diagnostic Assessment'}
+              </div>
+              <div style="display: flex; align-items: center; gap: 0.6rem;">
+                ${modBadge}
+                <span style="font-size: 0.75rem; color: var(--text-muted); font-family: var(--font-mono);">${dateStr}</span>
+              </div>
+            </div>
+            <div class="card-body">
+              <div style="display: flex; gap: 1.25rem; align-items: flex-start;">
+                ${thumbnailImg}
+                <div style="flex: 1;">
+                  <div style="font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.45rem;">
+                    Analysis ID: <strong style="color: var(--teal-primary); font-family: var(--font-mono);">${item.analysisId}</strong> &bull; 
+                    File: <span style="color: var(--text-primary);">${item.filename || item.fileMetadata?.originalFilename || 'Specimen File'}</span>
+                  </div>
+                  ${findingsSnippet}
+                  <div style="margin-top: 0.85rem; display: flex; gap: 0.5rem;">
+                    <button class="btn btn-outline btn-sm" onclick='TimelineClient.openReportModal(${JSON.stringify(item).replace(/'/g, "&#39;")})'>
+                      🔍 Inspect Full Findings
+                    </button>
+                    ${imgUrl ? `<a href="${imgUrl}" target="_blank" class="btn btn-secondary btn-sm">View Full Specimen &rarr;</a>` : ''}
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      },
+
+      openReportModal(item) {
+        const modal = document.getElementById('reportDetailModal');
+        const title = document.getElementById('modalReportTitle');
+        const content = document.getElementById('modalReportContent');
+
+        title.textContent = item.reportTitle || 'Diagnostic Study Inspection';
+
+        let html = `
+          <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1.25rem;">
+            <div style="font-size: 0.85rem; color: var(--text-muted);">
+              Analysis ID: <strong style="color: var(--teal-primary); font-family: var(--font-mono);">${item.analysisId}</strong><br>
+              Patient: <strong>${item.patientName || item.patientId}</strong> (${item.patientId})<br>
+              Recorded: <strong>${new Date(item.createdAt).toLocaleString()}</strong>
+            </div>
+          </div>
+        `;
+
+        if (item.medications && item.medications.length) {
+          html += `
+            <h4 style="font-size: 0.85rem; margin-bottom: 0.5rem; color: #fff;">Extracted Medications:</h4>
+            <div class="table-container" style="margin-bottom: 1rem;">
+              <table class="clinical-table">
+                <thead><tr><th>Medicine</th><th>Strength</th><th>Dosage</th><th>Frequency</th><th>Duration</th></tr></thead>
+                <tbody>
+                  ${item.medications.map(m => `
+                    <tr>
+                      <td><strong>${m.medicineName || m.name}</strong></td>
+                      <td>${m.strength || '-'}</td>
+                      <td>${m.dosage || '-'}</td>
+                      <td>${m.frequency || '-'}</td>
+                      <td>${m.duration || '-'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+
+        if (item.findings) {
+          html += `
+            <div style="background: var(--bg-surface-elevated); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); margin-bottom: 1rem;">
+              <h4 style="font-size: 0.85rem; color: var(--teal-primary); margin-bottom: 0.4rem;">Clinical Findings Breakdown</h4>
+              <pre style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); white-space: pre-wrap; max-height: 250px; overflow-y: auto;">${JSON.stringify(item.findings, null, 2)}</pre>
+            </div>
+          `;
+        }
+
+        content.innerHTML = html;
+        modal.style.display = 'flex';
+      },
+
+      closeReportModal() {
+        const modal = document.getElementById('reportDetailModal');
+        if (modal) modal.style.display = 'none';
+      },
+
+      handleSearch(query) {
+        clearTimeout(this.searchTimeout);
+        const dropdown = document.getElementById('searchResultsDropdown');
+        if (!query || query.trim().length === 0) {
+          if (dropdown) dropdown.style.display = 'none';
+          return;
+        }
+
+        this.searchTimeout = setTimeout(async () => {
+          try {
+            const res = await window.API.searchPatients(query.trim());
+            const list = res.data || [];
+            if (!dropdown) return;
+            if (list.length === 0) {
+              dropdown.innerHTML = `<div style="font-size: 0.8rem; color: var(--text-muted); padding: 0.35rem 0.5rem;">No matching patient found in MongoDB.</div>`;
+            } else {
+              dropdown.innerHTML = list.map(p => `
+                <div style="padding: 0.4rem 0.6rem; cursor: pointer; border-radius: 4px; display: flex; justify-content: space-between;" onmouseover="this.style.background='var(--bg-surface-hover)'" onmouseout="this.style.background='transparent'" onclick="TimelineClient.selectPatientObj(${JSON.stringify(p).replace(/"/g, '&quot;')})">
+                  <span style="font-weight: 600; color: #fff;">${p.name}</span>
+                  <span style="color: var(--teal-primary); font-family: var(--font-mono); font-size: 0.75rem;">${p.patientId}</span>
+                </div>
+              `).join('');
+            }
+            dropdown.style.display = 'block';
+          } catch (e) {
+            console.warn(e);
+          }
+        }, 300);
+      },
+
+      selectPatientObj(p) {
+        window.PatientManager.setActivePatient(p);
+        document.getElementById('searchResultsDropdown').style.display = 'none';
+        document.getElementById('patientSearchInput').value = '';
+        window.App.showToast(`Switched to patient ${p.name}`, 'info');
+        this.loadTimeline();
+      },
+
+      selectPatientById(pid) {
+        let p = window.PatientManager.DEFAULT_PATIENTS.find(item => item.patientId === pid);
+        if (!p) {
+          p = { patientId: pid, name: pid === 'P001' ? 'Demo Patient P001' : pid };
+        }
+        window.PatientManager.setActivePatient(p);
+        window.App.showToast(`Active patient set to ${p.name}`, 'info');
+        window.App.closePatientModal();
+        this.loadTimeline();
+      },
+
+      exportRecord() {
+        if (this.records.length === 0) {
+          window.App.showToast('No patient records to export.', 'error');
+          return;
+        }
+        const patient = window.PatientManager.getActivePatient();
+        const exportObj = {
+          exportDate: new Date().toISOString(),
+          patient,
+          totalStudies: this.records.length,
+          studies: this.records
+        };
+
+        const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportObj, null, 2));
+        const a = document.createElement('a');
+        a.setAttribute('href', dataStr);
+        a.setAttribute('download', `medical_timeline_${patient.patientId}.json`);
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.App.showToast('Medical record exported as JSON!', 'success');
+      }
+    };
+
+    async function handleRegisterPatient() {
+      const id = document.getElementById('newPatientId').value.trim();
+      const name = document.getElementById('newPatientName').value.trim();
+      const age = parseInt(document.getElementById('newPatientAge').value, 10) || 30;
+      const gender = document.getElementById('newPatientGender').value;
+
+      if (!id || !name) {
+        window.App.showToast('Please provide both Patient ID and Name', 'error');
+        return;
+      }
+
+      const newPat = { patientId: id, name, age, gender };
+      try {
+        await window.API.createPatient(newPat);
+        window.PatientManager.setActivePatient(newPat);
+        window.App.showToast(`Patient ${name} registered and active!`, 'success');
+        window.App.closePatientModal();
+        TimelineClient.loadTimeline();
+      } catch (e) {
+        window.App.showToast('Failed to register patient: ' + e.message, 'error');
+      }
+    }
+
+    window.TimelineClient = TimelineClient;
+    window.addEventListener('patientChanged', () => TimelineClient.loadTimeline());
+    document.addEventListener('DOMContentLoaded', () => TimelineClient.loadTimeline());
+  </script>
+</body>
+
+</html>

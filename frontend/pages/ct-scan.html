@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CT Scan Clinical Vision | MedVision-AI</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <a href="/index.html" class="nav-brand">
+      <div class="brand-icon">M</div>
+      <div>
+        <div class="brand-title">MEDVISION<span>-AI</span></div>
+        <span class="brand-subtitle">Clinical Intelligence Suite</span>
+      </div>
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="/index.html" class="nav-link">Hub</a></li>
+      <li><a href="/prescription.html" class="nav-link">Prescriptions</a></li>
+      <li><a href="/xray.html" class="nav-link">X-Ray Analysis</a></li>
+      <li><a href="/ct-scan.html" class="nav-link active">CT Clinical Vision</a></li>
+      <li><a href="/dashboard.html" class="nav-link">Patient Timeline</a></li>
+    </ul>
+
+    <div class="nav-right">
+      <div class="patient-badge">
+        <div class="patient-avatar">P</div>
+        <div class="patient-info">
+          <span class="patient-name active-patient-name">Loading...</span>
+          <span class="patient-id-tag active-patient-id">...</span>
+        </div>
+        <button class="btn-switch-patient" onclick="App.openPatientModal()">🔄</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="app-container">
+    <header class="hero-header">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <h1 class="hero-title">CT Scan Clinical Vision & Differential Findings</h1>
+          <p class="hero-subtitle">
+            Zero-hallucination diagnostic evaluation powered by Gemini Multimodal Vision. Distinguishes objective physical densities from non-definitive differential clinical considerations.
+          </p>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="CTClient.loadDemoSample()">
+          <span>⚡</span> Load Demo CT Slice
+        </button>
+      </div>
+    </header>
+
+    <div class="grid-2">
+      
+      <!-- Left Column: Upload & Slice Preview -->
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title"><span>📥</span> CT Slice Ingestion</div>
+          <span class="badge badge-green">PNG, JPG, JPEG (15MB)</span>
+        </div>
+        <div class="card-body">
+          <div id="ctDropZone" class="upload-zone">
+            <div class="upload-icon">🌀</div>
+            <div class="upload-prompt">Drop CT axial slice or scout view here or <span>browse</span></div>
+            <p class="upload-hint">Lanczos antialiased adaptive scaling & strict modality verification guardrails</p>
+            <input type="file" id="ctFileInput" accept="image/png, image/jpeg, .dcm, .dicom">
+          </div>
+
+          <div id="ctPreviewContainer" class="scan-container" style="display: none; margin-top: 1.5rem;">
+            <img id="ctPreviewImg" class="scan-image" alt="Uploaded CT Slice Preview">
+            <div class="scan-laser"></div>
+          </div>
+
+          <div id="ctLoading" style="display: none; margin-top: 1.5rem; text-align: center;">
+            <div style="color: var(--emerald-primary); font-weight: 600; margin-bottom: 0.5rem;">Running Gemini Multimodal Clinical Vision...</div>
+            <p style="font-size: 0.8125rem; color: var(--text-muted);">Extracting visible physical densities, assessing organ boundaries, and constructing differential considerations.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Visual Observations & Differential Findings -->
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title"><span>📋</span> Radiological Findings & Differential Considerations</div>
+          <div style="display: flex; gap: 0.5rem; align-items: center;">
+            <span id="ctModalityBadge" class="badge badge-teal">CT SCAN</span>
+            <button id="ctDownloadBtn" class="btn btn-secondary btn-sm" style="display: none;" onclick="CTClient.downloadClinicalReport()">Download Report</button>
+            <button id="ctPrintBtn" class="btn btn-outline btn-sm" style="display: none;" onclick="CTClient.printReport()">Print</button>
+          </div>
+        </div>
+        <div class="card-body">
+          
+          <div id="ctResultsContainer" style="display: none;">
+            
+            <!-- Rejection Alert Box for Non-CT Images -->
+            <div id="ctRejectionBox" style="display: none; background: rgba(241, 108, 120, 0.08); border: 1px solid rgba(241, 108, 120, 0.35); border-radius: var(--radius-md); padding: 1.5rem; text-align: center; margin-bottom: 1.25rem;">
+              <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">❌</div>
+              <h3 style="color: var(--rose-primary); font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">not a proper image to scan</h3>
+              <p id="ctRejectionMessage" style="color: var(--text-primary); font-size: 0.9rem; margin-bottom: 0.75rem;">
+                The uploaded image is not a valid CT scan image.
+              </p>
+              <div style="background: var(--bg-surface-elevated); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); font-size: 0.8125rem; color: var(--text-secondary); text-align: left;">
+                <strong style="color: var(--teal-primary);">Clinical Guidance:</strong> Please upload an authentic axial CT scan slice, helical reconstruction, or scout view in PNG, JPG, or DICOM format. For medical prescriptions, please use the Doctor Prescription Digitizer workspace.
+              </div>
+            </div>
+
+            <!-- Valid CT Scan Results Container -->
+            <div id="ctValidFindings">
+              <div style="background: var(--bg-surface-elevated); padding: 1.1rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); margin-bottom: 1.25rem;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.35rem;">
+                  <span style="font-size: 0.72rem; text-transform: uppercase; color: var(--teal-primary); font-weight: 700; letter-spacing: 0.05em;">STUDY EVALUATION SUMMARY</span>
+                  <span class="badge badge-green" id="ctStatusBadge">Verified Modality</span>
+                </div>
+                <h3 id="ctReportTitle" style="font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 0.5rem;">AI-Assisted CT Image Analysis Report</h3>
+                <p id="ctSummaryText" style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.5;">
+                  Evaluation complete.
+                </p>
+              </div>
+
+              <!-- Objective Visual Observations Table -->
+              <h4 style="font-size: 0.85rem; font-weight: 700; margin-bottom: 0.6rem; color: var(--text-primary); letter-spacing: 0.04em;">OBJECTIVE PHYSICAL OBSERVATIONS (DENSITIES & ANATOMY)</h4>
+              <div class="table-container" style="margin-bottom: 1.25rem;">
+                <table class="clinical-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 30px;">#</th>
+                      <th style="min-width: 140px;">Physical Observation</th>
+                      <th style="min-width: 140px;">Anatomical Location</th>
+                      <th>Visual Characteristics</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ctObsTableBody">
+                    <!-- Populated by JavaScript -->
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Potential Differential Findings Table -->
+              <h4 style="font-size: 0.85rem; font-weight: 700; margin-bottom: 0.6rem; color: var(--amber-primary); letter-spacing: 0.04em;">POTENTIAL DIFFERENTIAL CONSIDERATIONS (NON-DEFINITIVE)</h4>
+              <div class="table-container" style="margin-bottom: 1.25rem;">
+                <table class="clinical-table">
+                  <thead>
+                    <tr>
+                      <th style="min-width: 160px;">Differential Consideration</th>
+                      <th style="min-width: 110px;">Certainty</th>
+                      <th>Clinical Correlation / Reasoning</th>
+                    </tr>
+                  </thead>
+                  <tbody id="ctFindingsTableBody">
+                    <!-- Populated by JavaScript -->
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Clinical Recommendations -->
+              <div id="ctRecommendationsBox" style="background: rgba(22, 199, 193, 0.06); border: 1px solid rgba(22, 199, 193, 0.25); border-radius: var(--radius-md); padding: 0.85rem 1rem; margin-bottom: 1rem;">
+                <div style="font-size: 0.75rem; font-weight: 700; color: var(--teal-primary); margin-bottom: 0.35rem; text-transform: uppercase;">CLINICAL RECOMMENDATIONS FOR MEDICAL REVIEW</div>
+                <ul id="ctRecommendations" style="font-size: 0.8125rem; color: var(--text-secondary); padding-left: 1.25rem; line-height: 1.5;">
+                </ul>
+              </div>
+
+              <!-- Study Limitations -->
+              <div style="background: rgba(245, 185, 66, 0.06); border: 1px solid rgba(245, 185, 66, 0.25); border-radius: var(--radius-md); padding: 0.85rem 1rem; margin-bottom: 1rem;">
+                <div style="font-size: 0.75rem; font-weight: 700; color: var(--amber-primary); margin-bottom: 0.35rem; text-transform: uppercase;">STUDY LIMITATIONS & CLINICAL NOTES</div>
+                <ul id="ctLimitations" style="font-size: 0.8125rem; color: var(--text-secondary); padding-left: 1.25rem; line-height: 1.5;">
+                  <li>Single 2D axial slice does not replace full volumetric scan.</li>
+                </ul>
+              </div>
+
+              <!-- Medical Disclaimer -->
+              <div style="font-size: 0.75rem; color: var(--text-muted); border-top: 1px solid var(--border-subtle); padding-top: 0.75rem;">
+                <strong style="color: var(--text-secondary);">Medical Disclaimer:</strong> This automated AI-assisted evaluation is designed for clinical decision support and educational research. It is strictly non-diagnostic and must be verified by a board-certified radiologist.
+              </div>
+            </div>
+
+          </div>
+
+          <div id="ctEmptyState" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+            <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🌀</div>
+            <p>Upload a CT image slice to extract objective physical densities and differential considerations.</p>
+          </div>
+
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>MEDVISION-AI CT Module &copy; 2026. Zero-hallucination Gemini Vision Medical Prompt.</p>
+  </footer>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/patient-manager.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/ct-client.js"></script>
+</body>
+</html>
+

@@ -1,0 +1,33 @@
+{
+  "model_name": "MSKDamageDetector_MultiTask_ResNet18",
+  "dataset_split": "test",
+  "test_samples_count": 151,
+  "classification": {
+    "accuracy": 0.6556,
+    "precision": 0.6556,
+    "recall": 1.0,
+    "sensitivity": 1.0,
+    "specificity": 0.0,
+    "f1_score": 0.792,
+    "auroc": 0.5672,
+    "confusion_matrix": [
+      [
+        0,
+        52
+      ],
+      [
+        0,
+        99
+      ]
+    ]
+  },
+  "localization": {
+    "mean_iou": 0.0411,
+    "mAP_50": 0.0086,
+    "mAP_75": 0.0,
+    "annotated_boxes_evaluated": 116
+  },
+  "bone_identification": {
+    "top1_accuracy": 0.6623
+  }
+}

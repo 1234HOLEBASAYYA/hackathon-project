@@ -1,0 +1,75 @@
+# Antigravity Multi-Region X-Ray Analysis Platform .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Virtual Environments
+venv/
+.venv/
+ENV/
+
+# Data
+data/raw/
+data/processed/
+*.zip
+*.tar.gz
+*.dcm
+*.dicom
+
+# Keep manifests, splits, and reports tracked
+!data/manifests/
+!data/splits/
+!data/reports/
+
+# Runtime uploads & generated results (keep fixtures)
+backend/static/reports/*
+!backend/static/reports/.gitkeep
+backend/static/results/*
+!backend/static/results/.gitkeep
+backend/static/uploads/*
+!backend/static/uploads/.gitkeep
+!backend/static/uploads/sample_*
+
+# Node / Frontend
+node_modules/
+.pnp
+.pnp.js
+frontend/dist/
+frontend/build/
+.npm
+
+# Secrets and environment
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

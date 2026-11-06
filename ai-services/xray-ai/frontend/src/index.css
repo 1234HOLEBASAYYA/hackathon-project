@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #f8fafc;
+  --bg-surface: #ffffff;
+  --bg-subtle: #f1f5f9;
+  --bg-card: #ffffff;
+  
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+  
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  
+  --accent: #0284c7;
+  --accent-hover: #0369a1;
+  --accent-light: #e0f2fe;
+  
+  --danger: #dc2626;
+  --danger-light: #fef2f2;
+  
+  --success: #16a34a;
+  --success-light: #f0fdf4;
+  
+  --warning: #d97706;
+  --warning-light: #fffbeb;
+  
+  --focus-ring: #0284c7;
+  
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+html, body {
+  overflow-x: clip;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* Disciplined motion only */
+.fade-in {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

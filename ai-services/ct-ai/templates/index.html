@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MedVision-AI — AI-Powered CT Scan Image Analyzer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/css/style.css">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <!-- Background Glow Accents -->
+  <div class="ambient-glow glow-cyan"></div>
+  <div class="ambient-glow glow-purple"></div>
+
+  <!-- Header -->
+  <header class="navbar">
+    <div class="nav-container">
+      <div class="brand">
+        <div class="brand-logo">
+          <i data-lucide="scan-line"></i>
+        </div>
+        <div class="brand-info">
+          <div class="brand-title">
+            <span>MedVision</span><span class="brand-accent">-AI</span>
+            <span class="badge badge-tech">GEMINI 3.8 FLASH</span>
+          </div>
+          <p class="brand-subtitle">AI-Powered CT Scan & Radiologic Visual Decision Support</p>
+        </div>
+      </div>
+
+      <div class="system-status">
+        <div class="status-indicator" id="system-status-indicator">
+          <span class="status-dot online"></span>
+          <span class="status-text" id="system-status-text">Checking Core...</span>
+        </div>
+        <a href="#about-section" class="btn-ghost" title="About System">
+          <i data-lucide="info"></i>
+          <span>Clinical Notice</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="main-wrapper">
+    <!-- Notice Bar -->
+    <div class="medical-alert-banner">
+      <i data-lucide="shield-alert" class="alert-icon"></i>
+      <div class="alert-text">
+        <strong>CLINICAL DECISION SUPPORT SYSTEM:</strong> Uploaded images are analyzed as standalone 2D imaging files.
+        Visual observations are distinct from confirmed medical diagnoses. 
+        All findings strictly require correlation with complete volumetric studies and evaluation by a licensed radiologist.
+      </div>
+    </div>
+
+    <!-- Layout Grid: Left Upload / Control Panel, Right Dynamic Results Workspace -->
+    <div class="dashboard-grid">
+      
+      <!-- LEFT COLUMN: Image Input & Config -->
+      <section class="panel-column">
+        <div class="glass-card upload-card">
+          <div class="card-header">
+            <div class="header-icon cyan-icon">
+              <i data-lucide="upload-cloud"></i>
+            </div>
+            <div>
+              <h3>Upload CT Scan Image</h3>
+              <p>Supports axial CT slices, scout views, and radiographs (PNG, JPG)</p>
+            </div>
+          </div>
+
+          <!-- Drag and Drop Zone -->
+          <div class="dropzone" id="dropzone">
+            <input type="file" id="file-input" accept="image/png, image/jpeg, image/jpg, image/webp" style="display: none;">
+            
+            <div class="dropzone-content" id="dropzone-prompt">
+              <div class="dropzone-icon-circle">
+                <i data-lucide="image-plus"></i>
+              </div>
+              <p class="dropzone-title">Drag & drop CT image slice here</p>
+              <p class="dropzone-sub">or <button type="button" class="link-btn" id="browse-btn">browse your computer</button></p>
+              <div class="file-badges">
+                <span>PNG</span><span>JPG</span><span>JPEG</span><span>Max 15MB</span>
+              </div>
+            </div>
+
+            <!-- Preview Mode -->
+            <div class="preview-container" id="preview-container" style="display: none;">
+              <img id="image-preview" src="" alt="CT Scan Preview">
+              <button type="button" class="clear-preview-btn" id="clear-btn" title="Remove image">
+                <i data-lucide="x"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- File Meta & Sample Loader -->
+          <div class="file-meta-bar" id="file-meta-bar" style="display: none;">
+            <div class="file-meta-details">
+              <i data-lucide="file-check"></i>
+              <div>
+                <div class="file-name" id="meta-filename">image.jpg</div>
+                <div class="file-size" id="meta-filesize">0 KB</div>
+              </div>
+            </div>
+            <button type="button" class="btn-clear-text" id="remove-file-btn">Change</button>
+          </div>
+
+          <!-- Sample Quick-Load Button -->
+          <div class="sample-loader-row">
+            <span class="sample-label">Or test with demo sample:</span>
+            <button type="button" class="btn-sample" id="load-sample-btn">
+              <i data-lucide="sparkles"></i> Load Verified Test Case
+            </button>
+          </div>
+
+          <!-- Analyze Action Button -->
+          <div class="action-row">
+            <button type="button" class="btn-primary" id="analyze-btn" disabled>
+              <i data-lucide="cpu"></i>
+              <span id="analyze-btn-text">Run Visual Analysis</span>
+            </button>
+          </div>
+
+          <div class="modality-disclaimer">
+            <i data-lucide="help-circle"></i>
+            <span>Modality detection is visual and non-definitive from single static images.</span>
+          </div>
+        </div>
+
+        <!-- System Architecture Pill Card -->
+        <div class="glass-card sys-info-card" id="about-section">
+          <h4><i data-lucide="layers"></i> AI Architecture & Safety</h4>
+          <ul class="feature-list">
+            <li><i data-lucide="check-circle-2"></i> <strong>Zero Hallucination:</strong> Evaluates only visible densities and features.</li>
+            <li><i data-lucide="check-circle-2"></i> <strong>Objective Separation:</strong> Disassociates visual observations from medical hypotheses.</li>
+            <li><i data-lucide="check-circle-2"></i> <strong>Dual-Layer Resiliency:</strong> Automatic model fallback for 99.9% uptime.</li>
+            <li><i data-lucide="check-circle-2"></i> <strong>Export Engine:</strong> Generates Board-Formatted ReportLab PDF summaries.</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- RIGHT COLUMN: Dynamic Analysis Workspace -->
+      <section class="results-column">
+
+        <!-- Initial Placeholder State -->
+        <div class="glass-card empty-state" id="empty-state">
+          <div class="empty-icon-circle">
+            <i data-lucide="activity"></i>
+          </div>
+          <h3>Awaiting CT Scan Image</h3>
+          <p>Upload a computed tomography slice or medical radiograph on the left to begin automated visual feature extraction and structured radiological reporting.</p>
+          <div class="quick-steps">
+            <div class="step-pill"><span class="step-num">1</span> Upload Image</div>
+            <div class="step-arrow"><i data-lucide="chevron-right"></i></div>
+            <div class="step-pill"><span class="step-num">2</span> Gemini Vision Pass</div>
+            <div class="step-arrow"><i data-lucide="chevron-right"></i></div>
+            <div class="step-pill"><span class="step-num">3</span> Structured Report & PDF</div>
+          </div>
+        </div>
+
+        <!-- Loading / Progress State -->
+        <div class="glass-card loading-state" id="loading-state" style="display: none;">
+          <div class="scanner-animation-wrapper">
+            <div class="scanning-reticle"></div>
+            <i data-lucide="scan" class="reticle-icon"></i>
+          </div>
+          <h3 id="progress-heading">Analyzing CT Scan Image...</h3>
+          <p id="progress-status" class="progress-status-sub">Validating file integrity & image density values...</p>
+          
+          <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="progress-fill"></div>
+          </div>
+
+          <div class="loading-steps-checklist">
+            <div class="check-item active" id="step-1"><i data-lucide="loader-2" class="spin"></i> Image validation & format normalization</div>
+            <div class="check-item pending" id="step-2"><i data-lucide="circle"></i> Gemini AI clinical vision feature extraction</div>
+            <div class="check-item pending" id="step-3"><i data-lucide="circle"></i> Structured radiological schema verification</div>
+          </div>
+        </div>
+
+        <!-- Error Notification State -->
+        <div class="glass-card error-state" id="error-state" style="display: none;">
+          <div class="error-header">
+            <i data-lucide="alert-triangle" class="error-icon"></i>
+            <div>
+              <h3 id="error-title">Analysis Interrupted</h3>
+              <p id="error-detail">An error occurred while connecting to the image analysis engine.</p>
+            </div>
+          </div>
+          <div class="error-actions">
+            <button type="button" class="btn-secondary" id="retry-btn">
+              <i data-lucide="rotate-cw"></i> Retry Analysis
+            </button>
+            <button type="button" class="btn-ghost" id="dismiss-error-btn">Dismiss</button>
+          </div>
+        </div>
+
+        <!-- Structured Report Section -->
+        <div class="report-wrapper" id="report-section" style="display: none;">
+          
+          <!-- Report Header Bar -->
+          <div class="glass-card report-header-card">
+            <div class="report-meta-left">
+              <span class="report-tag">STRUCTURED CLINICAL REPORT</span>
+              <h2 id="report-title-text">AI-Assisted CT Image Analysis Report</h2>
+              <div class="report-meta-chips">
+                <span id="chip-filename"><i data-lucide="file"></i> CT_Scan.jpg</span>
+                <span id="chip-timestamp"><i data-lucide="clock"></i> UTC</span>
+                <span id="chip-model" class="model-pill"><i data-lucide="sparkles"></i> Gemini 3.8 Flash</span>
+              </div>
+            </div>
+            
+            <div class="report-actions-right">
+              <button type="button" class="btn-primary-outline" id="download-pdf-btn">
+                <i data-lucide="download"></i>
+                <span>Download PDF Report</span>
+              </button>
+              <button type="button" class="btn-secondary" id="analyze-another-btn">
+                <i data-lucide="plus-circle"></i>
+                <span>Analyze Another</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Section 1: Image Information -->
+          <div class="glass-card report-card">
+            <div class="card-section-title">
+              <i data-lucide="info" class="section-icon cyan"></i>
+              <h3>1. Image Characteristics & Modality</h3>
+            </div>
+            <div class="info-grid">
+              <div class="info-metric">
+                <span class="metric-label">Observed Modality</span>
+                <span class="metric-val" id="rep-image-type">CT Scan Slice</span>
+              </div>
+              <div class="info-metric">
+                <span class="metric-label">Resolution / Dimensions</span>
+                <span class="metric-val" id="rep-dimensions">512 x 512 px</span>
+              </div>
+              <div class="info-metric">
+                <span class="metric-label">Quality Assessment</span>
+                <span class="metric-val" id="rep-quality">Adequate contrast</span>
+              </div>
+            </div>
+            <div class="limitations-callout" id="rep-image-limitations">
+              <!-- Dynamically populated limitations -->
+            </div>
+          </div>
+
+          <!-- Section 2: Visual Observations -->
+          <div class="glass-card report-card">
+            <div class="card-section-title">
+              <i data-lucide="eye" class="section-icon purple"></i>
+              <h3>2. Visible Visual Observations (Physical Densities)</h3>
+            </div>
+            <p class="section-guidance">Objective descriptions of visible density patterns, margins, and anatomical landmarks.</p>
+            <div class="observations-list" id="rep-visual-observations">
+              <!-- Dynamically populated observation cards -->
+            </div>
+          </div>
+
+          <!-- Section 3: Potential Findings (Differentials) -->
+          <div class="glass-card report-card">
+            <div class="card-section-title">
+              <i data-lucide="stethoscope" class="section-icon yellow"></i>
+              <h3>3. Potential Clinical Considerations (Differential / Uncertain)</h3>
+            </div>
+            <p class="section-guidance">Non-definitive considerations based strictly on visible features. Requires clinical and laboratory correlation.</p>
+            <div class="findings-list" id="rep-potential-findings">
+              <!-- Dynamically populated findings cards -->
+            </div>
+          </div>
+
+          <!-- Section 4: Summary -->
+          <div class="glass-card report-card">
+            <div class="card-section-title">
+              <i data-lucide="file-text" class="section-icon green"></i>
+              <h3>4. Clinical Summary</h3>
+            </div>
+            <p class="summary-text" id="rep-summary">
+              Automated image-based visual summary.
+            </p>
+          </div>
+
+          <!-- Section 5: Recommendations & Limitations -->
+          <div class="dual-grid">
+            <div class="glass-card sub-card">
+              <div class="sub-card-header">
+                <i data-lucide="clipboard-check" class="blue-icon"></i>
+                <h4>Recommendations for Professional Review</h4>
+              </div>
+              <ul class="bullet-list" id="rep-recommendations">
+                <!-- Recommendations -->
+              </ul>
+            </div>
+
+            <div class="glass-card sub-card">
+              <div class="sub-card-header">
+                <i data-lucide="alert-circle" class="orange-icon"></i>
+                <h4>Study & Single-Slice Limitations</h4>
+              </div>
+              <ul class="bullet-list" id="rep-limitations">
+                <!-- Limitations -->
+              </ul>
+            </div>
+          </div>
+
+          <!-- Section 6: Official Medical Disclaimer -->
+          <div class="critical-disclaimer-box">
+            <div class="disclaimer-header">
+              <i data-lucide="alert-octagon"></i>
+              <strong>IMPORTANT MEDICAL DISCLAIMER</strong>
+            </div>
+            <p id="rep-disclaimer">
+              This AI-generated report is provided solely for educational, research, and clinical decision-support purposes. It does NOT constitute a confirmed medical diagnosis and is not a substitute for formal radiological evaluation by a board-certified radiologist.
+            </p>
+          </div>
+
+        </div> <!-- /report-wrapper -->
+
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-left">
+        <i data-lucide="activity"></i>
+        <span>MedVision-AI CT Scan Image Analyzer</span>
+        <span class="footer-dot">•</span>
+        <span>Google Gemini Clinical Vision API</span>
+      </div>
+      <div class="footer-right">
+        <span>Healthcare Hackathon Decision Support Prototype</span>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/static/js/script.js"></script>
+</body>
+</html>

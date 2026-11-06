@@ -1,0 +1,14 @@
+{
+  "class_to_idx": {
+    "NORMAL": 0,
+    "PNEUMONIA": 1
+  },
+  "idx_to_class": {
+    "0": "NORMAL",
+    "1": "PNEUMONIA"
+  },
+  "classes": [
+    "NORMAL",
+    "PNEUMONIA"
+  ]
+}

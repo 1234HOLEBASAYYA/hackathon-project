@@ -1,0 +1,49 @@
+# Dependencies
+node_modules
+**/node_modules
+__pycache__
+**/__pycache__
+*.py[cod]
+*$py.class
+.pytest_cache/
+**/.pytest_cache/
+.venv/
+**/env/
+**/venv/
+
+# Raw Training Datasets (too large for GitHub)
+**/dataset/
+**/datasets/
+**/chest_xray/
+
+# Static Generated Results & Uploads
+**/static/uploads/*
+!**/static/uploads/.gitkeep
+**/static/results/*
+!**/static/results/.gitkeep
+**/static/reports/*
+!**/static/reports/.gitkeep
+
+# Environment Variables & Secrets (Gemini API keys, credentials)
+.env
+**/.env
+*.env.local
+**/*.env.local
+!*.env.example
+!**/*.env.example
+
+# Temporary Uploads & Large Local Image Storage
+storage/prescriptions/*
+!storage/prescriptions/.gitkeep
+storage/xrays/*
+!storage/xrays/.gitkeep
+storage/ct-scans/*
+!storage/ct-scans/.gitkeep
+storage/reports/*
+!storage/reports/.gitkeep
+
+# System & OS Files
+Thumbs.db
+.DS_Store
+*.log
+**/.system_generated/

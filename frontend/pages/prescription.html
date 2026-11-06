@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Prescription OCR Digitizer | MedVision-AI</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <a href="/index.html" class="nav-brand">
+      <div class="brand-icon">M</div>
+      <div>
+        <div class="brand-title">MEDVISION<span>-AI</span></div>
+        <span class="brand-subtitle">Clinical Intelligence Suite</span>
+      </div>
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="/index.html" class="nav-link">Hub</a></li>
+      <li><a href="/prescription.html" class="nav-link active">Prescriptions</a></li>
+      <li><a href="/xray.html" class="nav-link">X-Ray Analysis</a></li>
+      <li><a href="/ct-scan.html" class="nav-link">CT Clinical Vision</a></li>
+      <li><a href="/dashboard.html" class="nav-link">Patient Timeline</a></li>
+    </ul>
+
+    <div class="nav-right">
+      <div class="patient-badge">
+        <div class="patient-avatar">P</div>
+        <div class="patient-info">
+          <span class="patient-name active-patient-name">Loading...</span>
+          <span class="patient-id-tag active-patient-id">...</span>
+        </div>
+        <button class="btn-switch-patient" onclick="App.openPatientModal()">🔄</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="app-container">
+    <header class="hero-header">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 1rem;">
+        <div>
+          <h1 class="hero-title">Doctor Prescription OCR & Digitizer</h1>
+          <p class="hero-subtitle">
+            Upload prescription images or PDFs. Powered by EasyOCR with deep learning CRAFT text detection, fuzzy
+            medication reconciliation, and structured clinical extraction.
+          </p>
+        </div>
+        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+          <button class="btn btn-secondary btn-sm" onclick="PrescriptionClient.openHistoryModal()">
+            <span>🕒</span> Previous Prescriptions
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="PrescriptionClient.loadDemoSample()">
+            <span>⚡</span> Load Demo Prescription
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <div class="grid-2">
+
+      <!-- Left Column: Upload & Specimen Preview -->
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title"><span>📤</span> Prescription Upload</div>
+          <span class="badge badge-teal">PNG, JPG, PDF (15MB)</span>
+        </div>
+        <div class="card-body">
+          <div id="rxDropZone" class="upload-zone">
+            <div class="upload-icon">📄</div>
+            <div class="upload-prompt">Drop prescription file here or <span>browse</span></div>
+            <p class="upload-hint">Automatic deskewing, CLAHE contrast enhancement & noise reduction</p>
+            <input type="file" id="rxFileInput" accept="image/png, image/jpeg, application/pdf">
+          </div>
+
+          <div id="rxPreviewContainer" class="scan-container" style="display: none; margin-top: 1.5rem;">
+            <img id="rxPreviewImg" class="scan-image" alt="Uploaded Prescription Preview">
+            <div class="scan-laser"></div>
+          </div>
+
+          <div id="rxLoading" style="display: none; margin-top: 1.5rem; text-align: center;">
+            <div style="color: var(--teal-primary); font-weight: 600; margin-bottom: 0.5rem;">Running Deep Learning
+              EasyOCR...</div>
+            <p style="font-size: 0.8125rem; color: var(--text-muted);">Detecting text bounding boxes, running BiLSTM
+              transcription, and matching against clinical pharmacopeia.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Structured Clinical Findings & Editable Verification -->
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title"><span>🩺</span> Structured Clinical Extraction</div>
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-outline btn-sm" onclick="PrescriptionClient.exportCSV()">Export CSV</button>
+          </div>
+        </div>
+        <div class="card-body">
+
+          <div id="rxResultsContainer" style="display: none;">
+
+            <!-- Doctor & Patient Details (Editable) -->
+            <div
+              style="background: var(--bg-surface-elevated); padding: 1.1rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); margin-bottom: 1.25rem;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+                <span
+                  style="font-size: 0.72rem; text-transform: uppercase; color: var(--teal-primary); font-weight: 700; letter-spacing: 0.05em;">CLINICIAN
+                  & PATIENT DETAILS</span>
+                <span class="badge badge-teal" id="rxStatusBadge">Extracted</span>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 0.75rem; margin-bottom: 0.75rem;">
+                <div>
+                  <label class="form-label" style="font-size: 0.7rem; margin-bottom: 2px;">Doctor Name</label>
+                  <input type="text" id="rxDocNameInput" class="form-input"
+                    style="padding: 0.4rem 0.6rem; font-size: 0.85rem;" placeholder="Doctor Name">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size: 0.7rem; margin-bottom: 2px;">Specialization /
+                    Degree</label>
+                  <input type="text" id="rxDocSpecInput" class="form-input"
+                    style="padding: 0.4rem 0.6rem; font-size: 0.85rem;" placeholder="Specialization">
+                </div>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr; gap: 0.75rem;">
+                <div>
+                  <label class="form-label" style="font-size: 0.7rem; margin-bottom: 2px;">Clinic / Hospital</label>
+                  <input type="text" id="rxClinicInput" class="form-input"
+                    style="padding: 0.4rem 0.6rem; font-size: 0.85rem;" placeholder="Clinic / Hospital">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size: 0.7rem; margin-bottom: 2px;">Patient Name</label>
+                  <input type="text" id="rxPatientNameInput" class="form-input"
+                    style="padding: 0.4rem 0.6rem; font-size: 0.85rem;" placeholder="Patient Name">
+                </div>
+                <div>
+                  <label class="form-label" style="font-size: 0.7rem; margin-bottom: 2px;">Patient Age</label>
+                  <input type="number" id="rxPatientAgeInput" class="form-input"
+                    style="padding: 0.4rem 0.6rem; font-size: 0.85rem;" placeholder="Age">
+                </div>
+              </div>
+            </div>
+
+            <!-- Clinical Assessment (Editable) -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; margin-bottom: 1.25rem;">
+              <div>
+                <label class="form-label" style="font-size: 0.7rem; margin-bottom: 2px;">Diagnosis</label>
+                <input type="text" id="rxDiagnosisInput" class="form-input"
+                  style="padding: 0.4rem 0.6rem; font-size: 0.85rem;" placeholder="Diagnosis">
+              </div>
+              <div>
+                <label class="form-label" style="font-size: 0.7rem; margin-bottom: 2px;">Medical Advice</label>
+                <input type="text" id="rxAdviceInput" class="form-input"
+                  style="padding: 0.4rem 0.6rem; font-size: 0.85rem;" placeholder="Advice">
+              </div>
+              <div>
+                <label class="form-label" style="font-size: 0.7rem; margin-bottom: 2px;">Follow-up</label>
+                <input type="text" id="rxFollowUpInput" class="form-input"
+                  style="padding: 0.4rem 0.6rem; font-size: 0.85rem;" placeholder="Follow-up">
+              </div>
+            </div>
+
+            <!-- Prescribed Medications Table with Editable Rows -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem;">
+              <h4 style="font-size: 0.85rem; font-weight: 700; color: var(--text-primary); letter-spacing: 0.04em;">
+                PRESCRIBED MEDICATIONS</h4>
+              <button class="btn btn-outline btn-sm" onclick="PrescriptionClient.addMedicationRow()">
+                <span>➕</span> Add Medicine
+              </button>
+            </div>
+
+            <div class="table-container" style="margin-bottom: 1.25rem;">
+              <table class="clinical-table">
+                <thead>
+                  <tr>
+                    <th style="width: 25px;">#</th>
+                    <th style="min-width: 140px;">Medication</th>
+                    <th style="min-width: 90px;">Strength</th>
+                    <th style="min-width: 90px;">Dosage</th>
+                    <th style="min-width: 100px;">Frequency</th>
+                    <th style="min-width: 90px;">Duration</th>
+                    <th style="min-width: 120px;">Instructions</th>
+                    <th style="min-width: 100px;">Confidence</th>
+                    <th style="width: 40px;"></th>
+                  </tr>
+                </thead>
+                <tbody id="rxMedsTableBody">
+                  <!-- Populated by JavaScript -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Action Buttons: Save Verified, Download & Print Report -->
+            <div style="display: flex; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap;">
+              <button class="btn btn-primary" onclick="PrescriptionClient.saveVerifiedPrescription()" style="flex: 2;">
+                <span>💾</span> Save Verified Prescription
+              </button>
+              <button class="btn btn-secondary" onclick="PrescriptionClient.downloadClinicalReport()" style="flex: 1.2;">
+                <span>📥</span> Download Report
+              </button>
+              <button class="btn btn-outline" onclick="PrescriptionClient.printClinicalReport()" style="flex: 1;">
+                <span>🖨️</span> Print
+              </button>
+            </div>
+
+            <!-- Raw Extracted OCR Snippet Accordion -->
+            <details
+              style="background: var(--bg-surface-elevated); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 0.75rem;">
+              <summary style="font-size: 0.75rem; font-weight: 600; color: var(--text-muted); cursor: pointer;">Raw OCR
+                Transcription Stream (CRAFT + BiLSTM)</summary>
+              <pre id="rxRawOcr"
+                style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem; white-space: pre-wrap; max-height: 140px; overflow-y: auto;"></pre>
+            </details>
+
+          </div>
+
+          <div id="rxEmptyState" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+            <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">📝</div>
+            <p>Upload a prescription file to begin automated clinical field extraction and medicine verification.</p>
+          </div>
+
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- History Modal -->
+  <div id="rxHistoryModal" class="modal-backdrop" style="display: none;">
+    <div class="modal" style="max-width: 680px;">
+      <div class="modal-header">
+        <h3 style="font-size: 1.125rem;">Patient Prescription History</h3>
+        <button class="btn-switch-patient" onclick="PrescriptionClient.closeHistoryModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div id="rxHistoryContainer" style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div style="text-align: center; color: var(--text-muted); padding: 2rem;">Loading previous prescriptions...
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline btn-sm" onclick="PrescriptionClient.closeHistoryModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="rxEmptyState" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+    <div style="font-size: 2rem; margin-bottom: 0.5rem;">📝</div>
+    <p>Upload a prescription file to begin automated clinical field extraction and medicine verification.</p>
+  </div>
+
+  </div>
+  </section>
+
+  </div>
+  </main>
+
+  <footer class="footer">
+    <p>MEDVISION-AI Prescription Module &copy; 2026. EasyOCR + Clinical Grammar Parser.</p>
+  </footer>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/patient-manager.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/prescription-client.js"></script>
+</body>
+
+</html>

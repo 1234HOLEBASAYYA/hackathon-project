@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Multi-Region X-Ray Analysis | MedVision-AI</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="stylesheet" href="/css/components.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <a href="/index.html" class="nav-brand">
+      <div class="brand-icon">M</div>
+      <div>
+        <div class="brand-title">MEDVISION<span>-AI</span></div>
+        <span class="brand-subtitle">Clinical Intelligence Suite</span>
+      </div>
+    </a>
+
+    <ul class="nav-links">
+      <li><a href="/index.html" class="nav-link">Hub</a></li>
+      <li><a href="/prescription.html" class="nav-link">Prescriptions</a></li>
+      <li><a href="/xray.html" class="nav-link active">X-Ray Analysis</a></li>
+      <li><a href="/ct-scan.html" class="nav-link">CT Clinical Vision</a></li>
+      <li><a href="/dashboard.html" class="nav-link">Patient Timeline</a></li>
+    </ul>
+
+    <div class="nav-right">
+      <div class="patient-badge">
+        <div class="patient-avatar">P</div>
+        <div class="patient-info">
+          <span class="patient-name active-patient-name">Loading...</span>
+          <span class="patient-id-tag active-patient-id">...</span>
+        </div>
+        <button class="btn-switch-patient" onclick="App.openPatientModal()">🔄</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="app-container">
+    <header class="hero-header">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+        <div>
+          <h1 class="hero-title">Multi-Region X-Ray Diagnostic AI</h1>
+          <p class="hero-subtitle">
+            Automated anatomical region classification across 10 zones (Chest, Hand, Wrist, Knee, Leg, Hip, etc.), deep learning MSK damage localization, and ReportLab PDF report generation.
+          </p>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="XRayClient.loadDemoSample()">
+          <span>⚡</span> Load Demo Wrist Fracture
+        </button>
+      </div>
+    </header>
+
+    <div class="grid-2">
+      
+      <!-- Left Column: Upload & Raw Preview -->
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title"><span>📥</span> Radiograph Ingestion</div>
+          <span class="badge badge-purple">PNG, JPG, DICOM (25MB)</span>
+        </div>
+        <div class="card-body">
+          <div id="xrayDropZone" class="upload-zone">
+            <div class="upload-icon">🦴</div>
+            <div class="upload-prompt">Drop radiograph image here or <span>browse</span></div>
+            <p class="upload-hint">Supports full multi-region DICOM and high-resolution radiographs</p>
+            <input type="file" id="xrayFileInput" accept="image/png, image/jpeg, .dcm, .dicom">
+          </div>
+
+          <div id="xrayPreviewContainer" class="scan-container" style="display: none; margin-top: 1.5rem;">
+            <img id="xrayRawImg" class="scan-image" alt="Uploaded Radiograph Preview">
+            <div class="scan-laser"></div>
+          </div>
+
+          <div id="xrayLoading" style="display: none; margin-top: 1.5rem; text-align: center;">
+            <div style="color: var(--purple-primary); font-weight: 600; margin-bottom: 0.5rem;">Executing PyTorch Multi-Task Networks...</div>
+            <p style="font-size: 0.8125rem; color: var(--text-muted);">Routing anatomical region, regressing fracture bounding boxes, and generating annotated comparative specimen.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Column: Diagnostic Findings & Specimen Viewer -->
+      <section class="card">
+        <div class="card-header">
+          <div class="card-title"><span>🔬</span> Radiological Specimen & Localization</div>
+          <div style="display: flex; gap: 0.5rem;">
+            <a id="xrayPdfBtn" class="btn btn-purple btn-sm" style="display: none;" target="_blank">Download PDF Report</a>
+            <button id="xrayPrintBtn" class="btn btn-outline btn-sm" style="display: none;" onclick="XRayClient.printReport()">Print Summary</button>
+          </div>
+        </div>
+        <div class="card-body">
+          
+          <div id="xrayResultsContainer" style="display: none;">
+            
+            <!-- Rejection Alert Box for Non-X-Ray Images -->
+            <div id="xrayRejectionBox" style="display: none; background: rgba(241, 108, 120, 0.08); border: 1px solid rgba(241, 108, 120, 0.35); border-radius: var(--radius-md); padding: 1.5rem; text-align: center; margin-bottom: 1.25rem;">
+              <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">❌</div>
+              <h3 style="color: var(--rose-primary); font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">not a proper image to scan</h3>
+              <p id="xrayRejectionMessage" style="color: var(--text-primary); font-size: 0.9rem; margin-bottom: 0.75rem;">
+                The uploaded image is not a medical X-ray radiograph.
+              </p>
+              <div style="background: var(--bg-surface-elevated); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); font-size: 0.8125rem; color: var(--text-secondary); text-align: left;">
+                <strong style="color: var(--teal-primary);">Clinical Guidance:</strong> <span id="xrayRejectionGuidance">Please upload an authentic medical X-ray radiograph (e.g. Chest, Hand, Wrist, Knee, Hip, Shoulder) in PNG, JPG, or DICOM format. For prescription documents, please use the Doctor Prescription Digitizer workspace.</span>
+              </div>
+            </div>
+
+            <!-- Valid Radiograph Results Container -->
+            <div id="xrayValidFindings">
+              <!-- Quick Meta Row -->
+              <div style="display: flex; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap;">
+                <span id="xrayStatus" class="badge badge-rose">DEFECT DETECTED</span>
+                <span class="badge badge-teal">Region: <strong id="xrayRegion" style="margin-left: 4px;">Wrist</strong></span>
+                <span class="badge badge-purple" id="xrayRegionConfBadge"><span id="xrayRegionConf">85% match</span></span>
+                <span class="badge badge-cyan" id="xrayModelBadge">ResNet-18 MSK</span>
+              </div>
+
+              <!-- Affected Structure & Clinical Impression -->
+              <div style="background: var(--bg-surface-elevated); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); margin-bottom: 1.25rem;">
+                <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--teal-primary); font-weight: 700;">IDENTIFIED STRUCTURE / ANATOMICAL FOCUS</div>
+                <div id="xrayBone" style="font-size: 1.15rem; font-weight: 700; color: #fff; margin-bottom: 0.35rem;">distal radius</div>
+                <p id="xrayImpression" style="font-size: 0.875rem; color: var(--text-secondary); line-height: 1.45;">
+                  Cortical discontinuity and fracture line localized on radiographic projection.
+                </p>
+              </div>
+
+              <!-- Side-by-Side Comparison: Original vs Annotated Specimen -->
+              <div style="margin-bottom: 1.25rem;">
+                <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.5rem; letter-spacing: 0.05em;">
+                  ORIGINAL VS. AI ANNOTATED SPECIMEN COMPARISON
+                </div>
+                <div class="viewer-split">
+                  <div class="specimen-pane">
+                    <div class="specimen-pane-header">Original Radiograph</div>
+                    <img id="xrayOriginalImg" src="" alt="Original Specimen">
+                  </div>
+                  <div class="specimen-pane">
+                    <div class="specimen-pane-header" style="color: var(--teal-primary);">AI Localization Overlay</div>
+                    <img id="xraySpecimenImg" src="" alt="Annotated Diagnostic Specimen">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Detailed Structural Findings Table -->
+              <div style="font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; margin-bottom: 0.5rem; letter-spacing: 0.05em;">
+                RADIOLOGICAL ABNORMALITY LOCALIZATIONS
+              </div>
+              <div class="table-container" style="margin-bottom: 1.25rem;">
+                <table class="clinical-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Pathology Type</th>
+                      <th>Target Structure</th>
+                      <th>Localization Coordinates</th>
+                      <th>Confidence</th>
+                    </tr>
+                  </thead>
+                  <tbody id="xrayFindingsTableBody">
+                    <!-- Populated by JavaScript -->
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Clinical Disclaimer -->
+              <div style="background: rgba(245, 185, 66, 0.06); border: 1px solid rgba(245, 185, 66, 0.25); border-radius: var(--radius-md); padding: 0.75rem 1rem; font-size: 0.78rem; color: var(--text-secondary);">
+                <strong style="color: var(--amber-primary);">Clinical Disclaimer:</strong> Automated AI deep-learning prediction for decision support. Formal radiological confirmation by a licensed medical practitioner is required.
+              </div>
+            </div>
+
+          </div>
+
+          <div id="xrayEmptyState" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+            <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🩻</div>
+            <p>Upload a radiograph to begin automated region classification and fracture localization.</p>
+          </div>
+
+        </div>
+      </section>
+
+          <div id="xrayEmptyState" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
+            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🩻</div>
+            <p>Upload a radiograph to begin automated region classification and fracture localization.</p>
+          </div>
+
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>MEDVISION-AI Radiography &copy; 2026. PyTorch ResNet-18 MSK Detector + TorchXRayVision DenseNet-121.</p>
+  </footer>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/patient-manager.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/xray-client.js"></script>
+</body>
+</html>
+

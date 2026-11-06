@@ -1,0 +1,27 @@
+{
+  "total_samples": 1421,
+  "split_counts": {
+    "train": 1083,
+    "val": 179,
+    "test": 159
+  },
+  "by_dataset": {
+    "FracAtlas": 1000,
+    "GRAZPEDWRI-DX": 390,
+    "ChestXRay_OpenAccess": 31
+  },
+  "by_anatomical_region": {
+    "hand": 529,
+    "leg": 433,
+    "wrist": 390,
+    "chest": 31,
+    "hip": 21,
+    "shoulder": 17
+  },
+  "fracture_distribution": {
+    "fractured": 982,
+    "normal_or_non_fractured": 439
+  },
+  "bounding_box_annotated_count": 1109,
+  "pediatric_count": 390
+}
