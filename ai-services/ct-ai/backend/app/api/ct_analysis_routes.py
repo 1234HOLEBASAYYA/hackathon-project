@@ -81,15 +81,15 @@ async def analyze_ct_image(
         with open(saved_path, "wb") as f:
             f.write(content)
 
-        # Preprocess image and enforce CT modality check
+        # Preprocess image safely without premature modality rejection
         prep_result = preprocess_ct_image(
             str(saved_path),
             output_dir=str(UPLOAD_DIR),
-            enforce_ct_modality=True
+            enforce_ct_modality=False
         )
         dimensions_str = prep_result["original_dimensions"]["formatted"]
 
-        # Run Gemini Vision Analysis
+        # Run Gemini Vision Analysis with multimodal modality distinction
         analysis_report = analyze_ct_scan_image(
             image_input=prep_result["processed_path"],
             filename=filename,
@@ -109,17 +109,18 @@ async def analyze_ct_image(
             "server_image_id": safe_filename
         }
 
-        # Save actual CT analysis result into MongoDB
-        mongo_service.save_analysis_result(
-            analysis_id=analysis_id,
-            modality="ct_scan",
-            report_title=analysis_report.get("report_title", "AI-Assisted CT Image Analysis Report"),
-            model_name=analysis_report.get("model_used", "gemini-3.5-flash"),
-            patient_id=patientId,
-            primary_finding=(analysis_report.get("potential_findings") or [{}])[0],
-            full_report=analysis_report,
-            filename=filename
-        )
+        # Save authentic CT analysis results into MongoDB
+        if analysis_report.get("is_compatible_ct_scan"):
+            mongo_service.save_analysis_result(
+                analysis_id=analysis_id,
+                modality="ct_scan",
+                report_title=analysis_report.get("report_title", "AI-Assisted CT Image Analysis Report"),
+                model_name=analysis_report.get("model_used", "gemini-3.5-flash"),
+                patient_id=patientId,
+                primary_finding=(analysis_report.get("potential_findings") or [{}])[0],
+                full_report=analysis_report,
+                filename=filename
+            )
 
         return {
             "status": "success",

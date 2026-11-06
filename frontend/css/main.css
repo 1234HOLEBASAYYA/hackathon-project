@@ -1,37 +1,37 @@
 /* ==========================================================================
    MEDVISION-AI: Unified Clinical Design System
-   Healthcare Palette: Deep Navy #101B2D | Midnight Blue #16263D | Medical Teal #16C7C1
-   Soft Cyan #67DDE5 | White #F5F8FC | Muted Blue Gray #A8B7C9 | Success #36C98F
-   Warning #F5B942 | Error #F16C78
+   Healthcare Palette: Main Bg #071525 | Secondary Bg #10243A | Cards #172F49
+   Primary Accent #20D5C5 | Secondary Accent #55C9F0 | Main Text #F4F8FC
+   Muted Text #A6B8CC | Success #35C995 | Amber #F5B942 | Error #F16C78
    ========================================================================== */
 
 :root {
-  --bg-primary: #101B2D;
-  --bg-secondary: #0B1320;
-  --bg-surface: #16263D;
-  --bg-surface-elevated: #1D324F;
-  --bg-surface-hover: #233C5E;
-  --bg-glass: rgba(22, 38, 61, 0.82);
+  --bg-primary: #071525;
+  --bg-secondary: #10243A;
+  --bg-surface: #172F49;
+  --bg-surface-elevated: #1F3C5C;
+  --bg-surface-hover: #25476D;
+  --bg-glass: rgba(23, 47, 73, 0.85);
   
-  --border-subtle: rgba(168, 183, 201, 0.16);
-  --border-medium: rgba(168, 183, 201, 0.28);
-  --border-accent: rgba(22, 199, 193, 0.35);
-  --border-focus: #16C7C1;
+  --border-subtle: rgba(166, 184, 204, 0.16);
+  --border-medium: rgba(166, 184, 204, 0.28);
+  --border-accent: rgba(32, 213, 197, 0.38);
+  --border-focus: #20D5C5;
 
-  --text-primary: #F5F8FC;
-  --text-secondary: #A8B7C9;
-  --text-muted: #7E90A6;
-  --text-accent: #67DDE5;
+  --text-primary: #F4F8FC;
+  --text-secondary: #A6B8CC;
+  --text-muted: #788B9E;
+  --text-accent: #55C9F0;
 
   /* Clinical Accents */
-  --teal-primary: #16C7C1;
-  --teal-glow: rgba(22, 199, 193, 0.25);
-  --cyan-primary: #67DDE5;
-  --cyan-glow: rgba(103, 221, 229, 0.25);
+  --teal-primary: #20D5C5;
+  --teal-glow: rgba(32, 213, 197, 0.28);
+  --cyan-primary: #55C9F0;
+  --cyan-glow: rgba(85, 201, 240, 0.25);
   --purple-primary: #8B5CF6;
   --purple-glow: rgba(139, 92, 246, 0.25);
-  --emerald-primary: #36C98F;
-  --emerald-glow: rgba(54, 201, 143, 0.22);
+  --emerald-primary: #35C995;
+  --emerald-glow: rgba(53, 201, 149, 0.24);
   --amber-primary: #F5B942;
   --amber-glow: rgba(245, 185, 66, 0.22);
   --rose-primary: #F16C78;

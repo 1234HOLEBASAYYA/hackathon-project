@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import requests
 import json
 
@@ -20,14 +21,14 @@ for s_name, s_data in services.items():
 
 # 2. Test Prescription OCR Pipeline
 print("\n[TEST 2] Testing Prescription OCR & Digitizer (EasyOCR CRAFT+BiLSTM)...", flush=True)
-sample_rx_path = "MEDVISION-AI/frontend/assets/images/sample_prescription.png"
-if not os.path.exists(sample_rx_path):
-    # Search for any image in storage/prescriptions
+base_dir = Path(__file__).resolve().parent
+sample_rx_path = base_dir / "frontend" / "assets" / "images" / "sample_prescription.png"
+if not sample_rx_path.exists():
     import glob
-    candidates = glob.glob("MEDVISION-AI/storage/prescriptions/*.*")
+    candidates = list(base_dir.glob("storage/prescriptions/*.*"))
     sample_rx_path = candidates[0] if candidates else None
 
-assert sample_rx_path and os.path.exists(sample_rx_path), "No sample prescription file found!"
+assert sample_rx_path and sample_rx_path.exists(), "No sample prescription file found!"
 print(f"  Uploading specimen: {sample_rx_path}", flush=True)
 
 with open(sample_rx_path, "rb") as f:
@@ -87,9 +88,8 @@ print(f"  Verified Prescription Saved to MongoDB! Status: {up_res.json().get('da
 
 # 4. Test Multi-Region X-Ray Analysis Pipeline
 print("\n[TEST 4] Testing Multi-Region X-Ray Diagnostic AI (ResNet-18 + DenseNet-121)...", flush=True)
-import glob
-xray_files = glob.glob("MEDVISION-AI/storage/xrays/*.*")
-assert xray_files, "No sample X-Ray file found in storage!"
+xray_files = list(base_dir.glob("frontend/assets/images/sample_wrist.png")) or list(base_dir.glob("storage/xrays/*.*"))
+assert xray_files, "No sample X-Ray file found!"
 sample_xray_path = xray_files[0]
 print(f"  Uploading radiograph: {sample_xray_path}", flush=True)
 
@@ -112,10 +112,8 @@ print(f"  Annotated Specimen URL: {xray_data.get('specimenUrl')}", flush=True)
 
 # 5. Test CT Clinical Vision Pipeline (Gemini Vision)
 print("\n[TEST 5] Testing CT Clinical Vision Pipeline (Modality Check & Multi-Modal Vision)...", flush=True)
-ct_files = glob.glob("MEDVISION-AI/storage/ct-scans/*Brain_cancer*.*")
-if not ct_files:
-    ct_files = glob.glob("MEDVISION-AI/storage/ct-scans/*.*")
-assert ct_files, "No sample CT file found in storage!"
+ct_files = list(base_dir.glob("frontend/assets/images/sample_ct.jpg")) or list(base_dir.glob("storage/ct-scans/*.*"))
+assert ct_files, "No sample CT file found!"
 sample_ct_path = ct_files[0]
 print(f"  Uploading CT specimen: {sample_ct_path}", flush=True)
 

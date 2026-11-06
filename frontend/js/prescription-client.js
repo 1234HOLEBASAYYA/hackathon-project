@@ -1,10 +1,20 @@
 /**
  * MEDVISION-AI Prescription OCR Client
- * Controls upload, EasyOCR execution, interactive clinical editing, MongoDB persistence, and report generation
+ * Controls upload, EasyOCR execution, interactive clinical editing, MongoDB persistence, and report generation.
+ * Features:
+ * - Single-request lock to prevent duplicate runs
+ * - Cancellation support via AbortController
+ * - Progress stage indicators
+ * - Retry capability and resilient error handling
+ * - Client-side non-blocking report download (Blob URL) and hidden iframe printing
  */
 
 const PrescriptionClient = {
   currentResult: null,
+  isProcessing: false,
+  abortController: null,
+  lastFile: null,
+  stageTimer: null,
 
   init() {
     const dropZone = document.getElementById('rxDropZone');
@@ -12,11 +22,19 @@ const PrescriptionClient = {
 
     if (!dropZone || !fileInput) return;
 
-    dropZone.addEventListener('click', () => fileInput.click());
+    // Open file picker only when clicking the drop zone background or text
+    dropZone.addEventListener('click', (e) => {
+      if (this.isProcessing) return;
+      if (e.target !== fileInput) {
+        fileInput.click();
+      }
+    });
 
     dropZone.addEventListener('dragover', (e) => {
       e.preventDefault();
-      dropZone.classList.add('dragover');
+      if (!this.isProcessing) {
+        dropZone.classList.add('dragover');
+      }
     });
 
     dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
@@ -24,6 +42,7 @@ const PrescriptionClient = {
     dropZone.addEventListener('drop', (e) => {
       e.preventDefault();
       dropZone.classList.remove('dragover');
+      if (this.isProcessing) return;
       if (e.dataTransfer.files.length) {
         this.processFile(e.dataTransfer.files[0]);
       }
@@ -31,12 +50,22 @@ const PrescriptionClient = {
 
     fileInput.addEventListener('change', () => {
       if (fileInput.files.length) {
-        this.processFile(fileInput.files[0]);
+        const file = fileInput.files[0];
+        fileInput.value = ''; // Reset so selecting the same file triggers change again
+        this.processFile(file);
       }
     });
   },
 
   async processFile(file) {
+    if (!file) return;
+
+    // Prevent concurrent duplicate executions
+    if (this.isProcessing) {
+      window.App.showToast('Prescription processing is already in progress.', 'warning');
+      return;
+    }
+
     // Validate file type
     const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'application/pdf'];
     if (!validTypes.includes(file.type) && !file.name.toLowerCase().endsWith('.pdf')) {
@@ -44,18 +73,26 @@ const PrescriptionClient = {
       return;
     }
 
-    if (file.size > 16 * 1024 * 1024) {
-      window.App.showToast('File size exceeds the 16MB limit.', 'error');
+    if (file.size > 25 * 1024 * 1024) {
+      window.App.showToast('File size exceeds the 25MB limit.', 'error');
       return;
     }
+
+    this.isProcessing = true;
+    this.lastFile = file;
 
     const previewContainer = document.getElementById('rxPreviewContainer');
     const previewImg = document.getElementById('rxPreviewImg');
     const resultsContainer = document.getElementById('rxResultsContainer');
     const emptyState = document.getElementById('rxEmptyState');
     const loadingState = document.getElementById('rxLoading');
+    const stageEl = document.getElementById('rxLoadingStage');
+    const subtextEl = document.getElementById('rxLoadingSubtext');
+    const errorBox = document.getElementById('rxErrorBox');
 
-    // Show image preview if not PDF
+    if (errorBox) errorBox.style.display = 'none';
+
+    // Show image preview if image
     if (file.type.startsWith('image/')) {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -74,16 +111,40 @@ const PrescriptionClient = {
     if (resultsContainer) resultsContainer.style.display = 'none';
     if (emptyState) emptyState.style.display = 'none';
 
+    // Progress stage updates
+    const stages = [
+      { delay: 0, title: 'Preprocessing Prescription...', sub: 'Applying CLAHE contrast equalization and deskewing image.' },
+      { delay: 3000, title: 'Running EasyOCR Text Detection...', sub: 'Deep Learning CRAFT engine identifying word regions and lines.' },
+      { delay: 8000, title: 'Transcribing Cursive Handwriting...', sub: 'BiLSTM sequence models transcribing medical abbreviations & dosages.' },
+      { delay: 14000, title: 'Structuring Clinical Fields...', sub: 'Matching extracted text against clinical pharmacopeia and dosages.' }
+    ];
+
+    if (this.stageTimer) clearInterval(this.stageTimer);
+    let stageIdx = 0;
+    if (stageEl) stageEl.textContent = stages[0].title;
+    if (subtextEl) subtextEl.textContent = stages[0].sub;
+
+    this.stageTimer = setInterval(() => {
+      stageIdx++;
+      if (stageIdx < stages.length) {
+        if (stageEl) stageEl.textContent = stages[stageIdx].title;
+        if (subtextEl) subtextEl.textContent = stages[stageIdx].sub;
+      }
+    }, 4500);
+
+    // Setup AbortController for cancel / timeout
+    this.abortController = new AbortController();
+
     try {
-      const activePatient = window.PatientManager.getActivePatient();
+      const activePatient = window.PatientManager ? window.PatientManager.getActivePatient() : { patientId: 'P-1001', name: 'Robert Miller' };
       const formData = new FormData();
       formData.append('file', file);
       formData.append('patientId', activePatient.patientId);
       formData.append('patientName', activePatient.name);
 
-      window.App.showToast('Executing EasyOCR deep-learning pipeline...', 'info');
+      window.App.showToast('Prescription upload initiated. Analyzing...', 'info');
 
-      const response = await window.API.analyzePrescription(formData);
+      const response = await window.API.analyzePrescription(formData, this.abortController.signal);
 
       if (response.status !== 'success') {
         throw new Error(response.message || 'Prescription analysis failed');
@@ -94,19 +155,73 @@ const PrescriptionClient = {
       window.App.showToast('Prescription digitized and saved to MongoDB!', 'success');
 
     } catch (err) {
-      console.error(err);
-      window.App.showToast(`Error: ${err.message}`, 'error');
-      if (emptyState) emptyState.style.display = 'block';
+      if (err.name === 'AbortError') {
+        window.App.showToast('Prescription analysis was cancelled.', 'warning');
+        if (emptyState) emptyState.style.display = 'block';
+      } else {
+        console.error('Prescription processing error:', err);
+        window.App.showToast(`Error: ${err.message}`, 'error');
+        this.renderError(err.message);
+      }
     } finally {
+      if (this.stageTimer) {
+        clearInterval(this.stageTimer);
+        this.stageTimer = null;
+      }
+      this.isProcessing = false;
+      this.abortController = null;
       if (loadingState) loadingState.style.display = 'none';
       if (previewContainer) previewContainer.classList.remove('scanning');
+    }
+  },
+
+  cancelAnalysis() {
+    if (this.abortController) {
+      this.abortController.abort();
+    }
+    this.isProcessing = false;
+    const loadingState = document.getElementById('rxLoading');
+    const previewContainer = document.getElementById('rxPreviewContainer');
+    const emptyState = document.getElementById('rxEmptyState');
+
+    if (loadingState) loadingState.style.display = 'none';
+    if (previewContainer) previewContainer.classList.remove('scanning');
+    if (!this.currentResult && emptyState) emptyState.style.display = 'block';
+  },
+
+  retryLastFile() {
+    if (this.lastFile) {
+      this.processFile(this.lastFile);
+    } else {
+      const fileInput = document.getElementById('rxFileInput');
+      if (fileInput) fileInput.click();
+    }
+  },
+
+  renderError(message) {
+    const errorBox = document.getElementById('rxErrorBox');
+    const errorMsgEl = document.getElementById('rxErrorMessage');
+    const errorDetailsEl = document.getElementById('rxErrorDetails');
+    const emptyState = document.getElementById('rxEmptyState');
+    const resultsContainer = document.getElementById('rxResultsContainer');
+
+    if (emptyState) emptyState.style.display = 'none';
+    if (resultsContainer) resultsContainer.style.display = 'none';
+
+    if (errorBox) {
+      if (errorMsgEl) errorMsgEl.textContent = 'Prescription Processing Failed';
+      if (errorDetailsEl) errorDetailsEl.textContent = message || 'An unexpected error occurred during OCR extraction.';
+      errorBox.style.display = 'block';
     }
   },
 
   renderResults(data) {
     const container = document.getElementById('rxResultsContainer');
     const emptyState = document.getElementById('rxEmptyState');
+    const errorBox = document.getElementById('rxErrorBox');
     if (!container) return;
+
+    if (errorBox) errorBox.style.display = 'none';
 
     // Doctor Details
     const doc = data.doctor || {};
@@ -145,15 +260,16 @@ const PrescriptionClient = {
 
     // Medications Table
     const tbody = document.getElementById('rxMedsTableBody');
-    tbody.innerHTML = '';
-
-    const meds = data.medications || [];
-    if (meds.length === 0) {
-      this.addMedicationRow(); // Provide one empty row for manual entry
-    } else {
-      meds.forEach((m, idx) => {
-        this.addMedicationRow(m, idx);
-      });
+    if (tbody) {
+      tbody.innerHTML = '';
+      const meds = data.medications || [];
+      if (meds.length === 0) {
+        this.addMedicationRow(); // Empty row for manual entry
+      } else {
+        meds.forEach((m, idx) => {
+          this.addMedicationRow(m, idx);
+        });
+      }
     }
 
     // Raw OCR text stream
@@ -169,7 +285,7 @@ const PrescriptionClient = {
     if (!tbody) return;
 
     const rowIdx = idx !== null ? idx + 1 : tbody.children.length + 1;
-    const confVal = typeof med.confidence === 'number' ? med.confidence : 85;
+    const confVal = typeof med.confidence === 'number' ? med.confidence : parseFloat(med.confidence) || 85;
     const isHighConf = confVal >= 75;
 
     const tr = document.createElement('tr');
@@ -197,10 +313,10 @@ const PrescriptionClient = {
       <td>
         ${isHighConf 
           ? `<span class="badge badge-green" title="Confidence: ${confVal.toFixed(0)}%">✅ High (${confVal.toFixed(0)}%)</span>`
-          : `<span class="badge badge-amber" title="Confidence: ${confVal.toFixed(0)}%">⚠️ Verify (${confVal.toFixed(0)}%)</span>`}
+          : `<span class="badge badge-amber" title="Confidence: ${confVal.toFixed(0)}%">⚠️ Review Needed (${confVal.toFixed(0)}%)</span>`}
       </td>
       <td style="text-align: center;">
-        <button type="button" class="btn-switch-patient" onclick="this.closest('tr').remove()" title="Delete row" style="color: var(--rose-primary);">✕</button>
+        <button class="btn-action-delete" title="Remove medication" onclick="this.closest('tr').remove()">✕</button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -241,8 +357,8 @@ const PrescriptionClient = {
         specialization: document.getElementById('rxDocSpecInput')?.value.trim() || '',
         clinicOrHospital: document.getElementById('rxClinicInput')?.value.trim() || ''
       },
-      patientName: document.getElementById('rxPatientNameInput')?.value.trim() || '',
-      patientAge: parseInt(document.getElementById('rxPatientAgeInput')?.value, 10) || undefined,
+      patientName: document.getElementById('rxPatientNameInput')?.value.trim() || 'Patient',
+      patientAge: parseInt(document.getElementById('rxPatientAgeInput')?.value) || undefined,
       diagnosis: document.getElementById('rxDiagnosisInput')?.value.trim() || '',
       advice: document.getElementById('rxAdviceInput')?.value.trim() || '',
       followUp: document.getElementById('rxFollowUpInput')?.value.trim() || '',
@@ -250,22 +366,22 @@ const PrescriptionClient = {
     };
 
     try {
-      window.App.showToast('Saving verified prescription to MongoDB...', 'info');
+      window.App.showToast('Persisting verified clinical record to MongoDB...', 'info');
       const res = await window.API.updatePrescription(prescriptionId, updatePayload);
 
       if (res.status === 'success') {
-        window.App.showToast('Prescription verified and saved successfully!', 'success');
         const statusBadge = document.getElementById('rxStatusBadge');
         if (statusBadge) {
           statusBadge.textContent = 'Verified & Locked';
           statusBadge.className = 'badge badge-green';
         }
-        this.currentResult = { ...this.currentResult, ...res.data };
+        window.App.showToast('Prescription verified and updated in MongoDB!', 'success');
       } else {
-        throw new Error(res.message || 'Failed to update');
+        throw new Error(res.message || 'Update failed');
       }
     } catch (e) {
-      window.App.showToast(`Error saving prescription: ${e.message}`, 'error');
+      console.error(e);
+      window.App.showToast(`Save failed: ${e.message}`, 'error');
     }
   },
 
@@ -275,56 +391,41 @@ const PrescriptionClient = {
     if (!modal || !container) return;
 
     modal.style.display = 'flex';
-    container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2rem;">Fetching patient prescriptions...</div>`;
+    container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem;">Fetching patient records...</div>';
 
-    const activePatient = window.PatientManager.getActivePatient();
     try {
+      const activePatient = window.PatientManager ? window.PatientManager.getActivePatient() : { patientId: 'P-1001' };
       const res = await window.API.getPrescriptionHistory(activePatient.patientId);
-      if (res.status !== 'success') throw new Error(res.message);
 
-      const list = res.data || [];
-      if (list.length === 0) {
-        container.innerHTML = `
-          <div style="text-align: center; padding: 2rem; color: var(--text-muted);">
-            No previous prescriptions recorded for ${activePatient.name} (${activePatient.patientId}).
-          </div>
-        `;
-        return;
-      }
-
-      container.innerHTML = '';
-      list.forEach(p => {
-        const item = document.createElement('div');
-        item.style.cssText = 'background: var(--bg-surface-elevated); padding: 1rem; border-radius: var(--radius-md); border: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center; gap: 1rem;';
-        
-        const dateStr = new Date(p.createdAt).toLocaleDateString() + ' ' + new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-        const medsSummary = (p.medications || []).map(m => m.medicineName || m.name).slice(0, 3).join(', ');
-
-        item.innerHTML = `
-          <div>
-            <div style="font-weight: 700; color: #fff;">${p.doctor?.name ? 'Dr. ' + p.doctor.name : 'Prescription Review'}</div>
-            <div style="font-size: 0.8125rem; color: var(--teal-primary);">${p.diagnosis || 'Clinical Assessment'}</div>
-            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">
-              Medications: ${medsSummary || 'None extracted'} &bull; ${dateStr}
+      if (res.status === 'success' && res.data && res.data.length > 0) {
+        container.innerHTML = '';
+        res.data.forEach(p => {
+          const card = document.createElement('div');
+          card.style.cssText = 'background: var(--bg-surface-elevated); padding: 1rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); display: flex; justify-content: space-between; align-items: center;';
+          card.innerHTML = `
+            <div>
+              <div style="font-weight: 700; color: var(--text-primary); font-size: 0.9rem;">
+                ${p.diagnosis || 'Clinical Review'}
+                <span class="badge ${p.status === 'verified' ? 'badge-green' : 'badge-teal'}" style="margin-left: 0.5rem; font-size: 0.68rem;">
+                  ${p.status}
+                </span>
+              </div>
+              <div style="font-size: 0.78rem; color: var(--text-muted); margin-top: 2px;">
+                Dr. ${p.doctor?.name || 'Unknown'} &bull; ${new Date(p.createdAt).toLocaleDateString()} &bull; ${p.medications?.length || 0} Meds
+              </div>
             </div>
-          </div>
-          <button class="btn btn-outline btn-sm" onclick='PrescriptionClient.loadHistoryPrescription(${JSON.stringify(p)})'>
-            Load Record
-          </button>
-        `;
-        container.appendChild(item);
-      });
-
+            <button class="btn btn-outline btn-sm" onclick='PrescriptionClient.loadHistoricalPrescription(${JSON.stringify(p).replace(/'/g, "&apos;")})'>
+              Load &rarr;
+            </button>
+          `;
+          container.appendChild(card);
+        });
+      } else {
+        container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 2rem;">No previous prescriptions found for this patient.</div>';
+      }
     } catch (e) {
-      container.innerHTML = `<div style="color: var(--rose-primary); padding: 1rem;">Failed to load history: ${e.message}</div>`;
+      container.innerHTML = `<div style="text-align: center; color: var(--rose-primary); padding: 2rem;">Failed to load history: ${e.message}</div>`;
     }
-  },
-
-  loadHistoryPrescription(p) {
-    this.currentResult = p;
-    this.renderResults(p);
-    this.closeHistoryModal();
-    window.App.showToast(`Loaded prescription from ${new Date(p.createdAt).toLocaleDateString()}`, 'info');
   },
 
   closeHistoryModal() {
@@ -332,109 +433,105 @@ const PrescriptionClient = {
     if (modal) modal.style.display = 'none';
   },
 
+  loadHistoricalPrescription(p) {
+    this.closeHistoryModal();
+    this.currentResult = p;
+    this.renderResults(p);
+    window.App.showToast(`Loaded prescription record #${p.prescriptionId}`, 'info');
+  },
+
   buildReportHtml() {
     if (!this.currentResult) return '';
-    const doc = this.currentResult.doctor || {};
-    const meds = this.currentResult.medications || [];
-    const patName = this.currentResult.patientName || (this.currentResult.patient && this.currentResult.patient.name) || 'Patient';
-    const patId = this.currentResult.patientId || 'P-1001';
-    const dateStr = new Date(this.currentResult.createdAt || Date.now()).toLocaleDateString();
 
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Prescription Report - ${patName} (${patId})</title>
-  <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1e293b; padding: 30px; background: #fff; margin: 0; }
-    .rx-card { max-width: 800px; margin: 0 auto; border: 1px solid #cbd5e1; border-radius: 8px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-    .header { border-bottom: 2px solid #0284c7; padding-bottom: 12px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start; }
-    .doc-name { font-size: 20px; font-weight: bold; color: #0284c7; }
-    .clinic { font-size: 13px; color: #64748b; margin-top: 3px; }
-    .patient-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 15px; border-radius: 6px; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 12px; margin-bottom: 20px; }
-    th, td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; font-size: 12px; }
-    th { background: #f1f5f9; color: #334155; font-weight: 600; }
-    .rx-symbol { font-size: 28px; font-weight: bold; color: #0284c7; margin: 8px 0; }
-    .footer { margin-top: 30px; border-top: 1px solid #cbd5e1; padding-top: 12px; font-size: 11px; color: #64748b; text-align: center; }
-    .no-print { margin-bottom: 15px; text-align: right; }
-    @media print {
-      body { padding: 0; }
-      .rx-card { border: none; box-shadow: none; padding: 0; }
-      .no-print { display: none !important; }
-    }
-  </style>
-</head>
-<body>
-  <div class="rx-card">
-    <div class="no-print">
-      <button onclick="window.print()" style="padding: 6px 14px; background: #0284c7; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 600;">Print / Save as PDF</button>
-    </div>
-    <div class="header">
-      <div>
-        <div class="doc-name">${doc.name ? 'Dr. ' + doc.name : 'Authorized Medical Practitioner'}</div>
-        <div style="font-size: 13px; color: #475569;">${doc.specialization || 'Clinical Specialist'} ${doc.qualification ? '(' + doc.qualification + ')' : ''}</div>
-        <div class="clinic">${this.currentResult.clinicHeader || doc.clinicOrHospital || 'Apollo Health Clinical Network'}</div>
-      </div>
-      <div style="text-align: right; font-size: 11px; color: #64748b;">
-        <div>MEDVISION-AI Verified</div>
-        <div>Rx ID: <strong>${this.currentResult.prescriptionId || 'RX-' + Date.now()}</strong></div>
-      </div>
-    </div>
+    const p = this.currentResult;
+    const doc = p.doctor || {};
+    const meds = p.medications || [];
+    const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
-    <div class="patient-box">
-      <div><strong>Patient Name:</strong> ${patName}</div>
-      <div><strong>Date:</strong> ${dateStr}</div>
-      <div><strong>Patient ID:</strong> ${patId}</div>
-      <div><strong>Diagnosis:</strong> ${this.currentResult.diagnosis || 'Clinical Review'}</div>
-    </div>
-
-    <div class="rx-symbol">&#8478;</div>
-
-    <table>
-      <thead>
+    let medsHtml = '';
+    meds.forEach((m, idx) => {
+      medsHtml += `
         <tr>
-          <th style="width: 25px;">#</th>
-          <th>Medication Name</th>
-          <th>Strength</th>
-          <th>Dosage</th>
-          <th>Frequency</th>
-          <th>Duration</th>
-          <th>Instructions</th>
+          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #64748b;">${idx + 1}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #0f172a;">${m.medicineName || m.name || 'Medication'}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${m.strength || 'N/A'}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${m.dosage || '1 unit'}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${m.frequency || 'Daily'}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0;">${m.duration || 'As directed'}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #475569;">${m.specialInstructions || m.foodInstructions || 'None'}</td>
         </tr>
-      </thead>
-      <tbody>
-        ${meds.map((m, idx) => `
-          <tr>
-            <td>${idx + 1}</td>
-            <td><strong>${m.medicineName || m.name}</strong></td>
-            <td>${m.strength || '-'}</td>
-            <td>${m.dosage || '-'}</td>
-            <td>${m.frequency || '-'}</td>
-            <td>${m.duration || '-'}</td>
-            <td>${m.specialInstructions || m.foodInstructions || '-'}</td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
+      `;
+    });
 
-    <div style="margin-bottom: 15px;">
-      <strong style="font-size: 13px; color: #334155;">Clinical Advice / Instructions:</strong>
-      <p style="margin: 4px 0 0 0; font-size: 13px; color: #475569; line-height: 1.4;">${this.currentResult.advice || 'Follow medication schedule as prescribed.'}</p>
-    </div>
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Prescription Report - ${p.patientName || 'Patient'}</title>
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #0f172a; margin: 40px; background: #fff; }
+          .header { border-bottom: 2px solid #0284c7; padding-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-start; }
+          .clinic-name { font-size: 24px; font-weight: 800; color: #0369a1; text-transform: uppercase; margin: 0; }
+          .doc-name { font-size: 16px; font-weight: 700; color: #334155; margin-top: 4px; }
+          .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 25px 0; background: #f8fafc; padding: 15px; border-radius: 6px; border: 1px solid #e2e8f0; font-size: 14px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+          th { background: #f1f5f9; color: #475569; text-align: left; padding: 10px; font-weight: 700; border-bottom: 2px solid #cbd5e1; }
+          .footer { margin-top: 40px; border-top: 1px solid #e2e8f0; padding-top: 15px; font-size: 12px; color: #64748b; display: flex; justify-content: space-between; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div>
+            <h1 class="clinic-name">${p.clinicHeader || doc.clinicOrHospital || 'MEDVISION CLINICAL CENTER'}</h1>
+            <div class="doc-name">${doc.name ? 'Dr. ' + doc.name.replace(/^Dr\.?\s*/i, '') : 'Consulting Physician'}</div>
+            <div style="font-size: 13px; color: #64748b;">${doc.specialization || 'General Clinical Medicine'} ${doc.qualification ? '(' + doc.qualification + ')' : ''}</div>
+          </div>
+          <div style="text-align: right; font-size: 13px; color: #64748b;">
+            <div><strong>Date:</strong> ${dateStr}</div>
+            <div><strong>Rx ID:</strong> ${p.prescriptionId || 'RX-AUTOGEN'}</div>
+            <div><strong>Status:</strong> ${p.status ? p.status.toUpperCase() : 'VERIFIED'}</div>
+          </div>
+        </div>
 
-    ${this.currentResult.followUp ? `
-    <div style="margin-bottom: 15px;">
-      <strong style="font-size: 13px; color: #334155;">Follow-Up:</strong>
-      <p style="margin: 4px 0 0 0; font-size: 13px; color: #475569;">${this.currentResult.followUp}</p>
-    </div>` : ''}
+        <div class="meta-grid">
+          <div><strong>Patient Name:</strong> ${p.patientName || 'Robert Miller'}</div>
+          <div><strong>Patient ID:</strong> ${p.patientId || 'P-1001'}</div>
+          <div><strong>Diagnosis:</strong> ${p.diagnosis || 'Clinical Prescription Review'}</div>
+          <div><strong>Follow-Up:</strong> ${p.followUp || 'As directed by physician'}</div>
+        </div>
 
-    <div class="footer">
-      Digitized via MEDVISION-AI Multi-Modal Clinical Workspace. Document verified by licensed practitioner.
-    </div>
-  </div>
-</body>
-</html>`;
+        <h3 style="font-size: 16px; border-left: 4px solid #0284c7; padding-left: 8px; margin-top: 30px;">Rx Prescribed Medications</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Medication</th>
+              <th>Strength</th>
+              <th>Dosage</th>
+              <th>Frequency</th>
+              <th>Duration</th>
+              <th>Instructions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${medsHtml}
+          </tbody>
+        </table>
+
+        ${p.advice ? `
+          <div style="margin-top: 25px; padding: 12px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 14px;">
+            <strong>Physician Advice:</strong> ${p.advice}
+          </div>
+        ` : ''}
+
+        <div class="footer">
+          <div>MEDVISION-AI Clinical Decision Support Platform &bull; EasyOCR CRAFT+BiLSTM Digitizer</div>
+          <div>Verified Digital Copy &bull; Page 1 of 1</div>
+        </div>
+      </body>
+      </html>
+    `;
   },
 
   downloadClinicalReport() {
@@ -471,30 +568,24 @@ const PrescriptionClient = {
 
     const reportHtml = this.buildReportHtml();
 
-    // Use a clean hidden iframe to print without opening blank tabs or blocking the parent window
-    let iframe = document.getElementById('rxPrintIframe');
-    if (!iframe) {
-      iframe = document.createElement('iframe');
-      iframe.id = 'rxPrintIframe';
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = '0';
-      document.body.appendChild(iframe);
+    // Use a clean hidden iframe to print without opening blocking popups
+    let printFrame = document.getElementById('rxPrintFrame');
+    if (!printFrame) {
+      printFrame = document.createElement('iframe');
+      printFrame.id = 'rxPrintFrame';
+      printFrame.style.cssText = 'position: fixed; top: -10000px; left: -10000px; width: 1px; height: 1px; border: 0;';
+      document.body.appendChild(printFrame);
     }
 
-    const doc = iframe.contentWindow.document;
-    doc.open();
-    doc.write(reportHtml);
-    doc.close();
+    const frameDoc = printFrame.contentWindow || printFrame.contentDocument.document || printFrame.contentDocument;
+    frameDoc.document.open();
+    frameDoc.document.write(reportHtml);
+    frameDoc.document.close();
 
-    // Trigger non-blocking print
     setTimeout(() => {
       try {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
+        printFrame.contentWindow.focus();
+        printFrame.contentWindow.print();
       } catch (e) {
         console.warn('Iframe print fallback:', e);
       }
@@ -502,6 +593,7 @@ const PrescriptionClient = {
   },
 
   async loadDemoSample() {
+    if (this.isProcessing) return;
     window.App.showToast('Fetching sample printed prescription...', 'info');
     try {
       const response = await fetch('/assets/images/sample_prescription.png');

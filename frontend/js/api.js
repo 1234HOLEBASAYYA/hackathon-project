@@ -27,28 +27,31 @@ const API = {
   },
 
   // Prescription Analysis
-  async analyzePrescription(formData) {
+  async analyzePrescription(formData, signal = null) {
     const res = await fetch(`${API_BASE}/api/analysis/prescription/analyze`, {
       method: 'POST',
-      body: formData
+      body: formData,
+      signal
     });
     return res.json();
   },
 
   // X-Ray Analysis
-  async analyzeXRay(formData) {
+  async analyzeXRay(formData, signal = null) {
     const res = await fetch(`${API_BASE}/api/analysis/xray/analyze`, {
       method: 'POST',
-      body: formData
+      body: formData,
+      signal
     });
     return res.json();
   },
 
   // CT-Scan Analysis
-  async analyzeCTScan(formData) {
+  async analyzeCTScan(formData, signal = null) {
     const res = await fetch(`${API_BASE}/api/analysis/ct/analyze`, {
       method: 'POST',
-      body: formData
+      body: formData,
+      signal
     });
     return res.json();
   },

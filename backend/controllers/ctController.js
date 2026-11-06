@@ -31,11 +31,36 @@ async function handleCTAnalysis(req, res, next) {
     const aiResult = await analyzeCTScan(filePath, originalFilename, patientId);
 
     const reportData = aiResult.data || aiResult;
-    const analysisId = reportData.analysis_id || `an_ct_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
-
     const observations = reportData.visual_observations || [];
     const findings = reportData.potential_findings || [];
     const reportTitle = reportData.report_title || 'AI-Assisted CT Image Analysis Report';
+
+    // Check if the uploaded image was determined to be an incompatible modality (MRI, X-ray, prescription, photo)
+    if (reportData.is_compatible_ct_scan === false) {
+      const detectedMod = reportData.detected_modality || 'unsupported';
+      const reason = reportData.incompatibility_reason || 'The uploaded file is not an authentic CT scan slice.';
+      let guidance = 'Please upload an authentic CT axial slice or scout view in PNG, JPG, or DICOM format.';
+      if (detectedMod === 'mri') {
+        guidance = 'Specimen identified as Magnetic Resonance Imaging (MRI). MRI measures radiofrequency proton relaxation across soft tissue, whereas CT measures X-ray attenuation. The CT module is specifically calibrated for Hounsfield tomography. Please correlate with a certified neuro-radiologist.';
+      } else if (detectedMod === 'xray') {
+        guidance = 'Specimen identified as a 2D projection radiograph (X-ray). Please submit this image to the Multi-Region X-Ray Diagnostic AI workspace.';
+      } else if (detectedMod === 'prescription_doc') {
+        guidance = 'Specimen identified as a medical prescription document or clinical note. Please submit this file to the Doctor Prescription OCR & Digitizer workspace.';
+      }
+
+      return errorResponse(res, 'not a proper image to scan', 400, {
+        isCompatibleCtScan: false,
+        detectedModality: detectedMod,
+        incompatibilityReason: reason,
+        visualObservations: observations,
+        potentialFindings: findings,
+        summary: reportData.summary || reason,
+        patientGuidance: guidance,
+        suggestedModule: detectedMod === 'xray' ? 'xray' : (detectedMod === 'prescription_doc' ? 'prescription' : null)
+      });
+    }
+
+    const analysisId = reportData.analysis_id || `an_ct_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
 
     const recordDoc = {
       analysisId,
@@ -100,15 +125,16 @@ async function handleCTAnalysis(req, res, next) {
     const errText = (detail || error.message || '').toLowerCase();
     
     // Check if error is due to uploading an incompatible or non-CT image
-    if (errText.includes('incompatible') || errText.includes('prescription_doc') || errText.includes('unsupported') || errText.includes('not a proper') || errText.includes('non-radiological')) {
+    if (errText.includes('incompatible') || errText.includes('prescription') || errText.includes('unsupported') || errText.includes('not a proper') || errText.includes('non-radiological') || errText.includes('mri') || errText.includes('photo')) {
       return errorResponse(res, 'not a proper image to scan', 400, {
         isCompatibleCtScan: false,
         warning: 'The uploaded file is not a valid CT scan image. Please upload an authentic CT axial slice or scout view.',
+        patientGuidance: 'Please upload an authentic CT axial slice in PNG, JPG, or DICOM format. For prescriptions, use the Doctor Prescription Digitizer.',
         detail
       });
     }
 
-    return errorResponse(res, `CT scan analysis failed: ${detail || error.message}`, error.response ? error.response.status : 500, detail);
+    return errorResponse(res, detail || 'not a proper image to scan', error.response ? error.response.status : 500, detail);
   }
 }
 

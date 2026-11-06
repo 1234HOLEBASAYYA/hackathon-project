@@ -98,13 +98,22 @@
             
             <!-- Rejection Alert Box for Non-CT Images -->
             <div id="ctRejectionBox" style="display: none; background: rgba(241, 108, 120, 0.08); border: 1px solid rgba(241, 108, 120, 0.35); border-radius: var(--radius-md); padding: 1.5rem; text-align: center; margin-bottom: 1.25rem;">
-              <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">❌</div>
+              <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">⚠️</div>
               <h3 style="color: var(--rose-primary); font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">not a proper image to scan</h3>
+              <div id="ctDetectedBadge" style="margin-bottom: 0.6rem; display: inline-flex;"></div>
               <p id="ctRejectionMessage" style="color: var(--text-primary); font-size: 0.9rem; margin-bottom: 0.75rem;">
                 The uploaded image is not a valid CT scan image.
               </p>
               <div style="background: var(--bg-surface-elevated); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); font-size: 0.8125rem; color: var(--text-secondary); text-align: left;">
-                <strong style="color: var(--teal-primary);">Clinical Guidance:</strong> Please upload an authentic axial CT scan slice, helical reconstruction, or scout view in PNG, JPG, or DICOM format. For medical prescriptions, please use the Doctor Prescription Digitizer workspace.
+                <strong style="color: var(--teal-primary);">Clinical Guidance:</strong> <span id="ctRejectionGuidance">Please upload an authentic axial CT scan slice, helical reconstruction, or scout view in PNG, JPG, or DICOM format. For medical prescriptions, please use the Doctor Prescription Digitizer workspace.</span>
+              </div>
+              <div id="ctRejectionActions" style="margin-top: 1.25rem; display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+                <a href="/xray.html" class="btn btn-purple btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                  <span>🔬</span> Switch to X-Ray Diagnostic AI
+                </a>
+                <a href="/prescription.html" class="btn btn-teal btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                  <span>📝</span> Switch to Prescription OCR
+                </a>
               </div>
             </div>
 
@@ -194,10 +203,10 @@
     <p>MEDVISION-AI CT Module &copy; 2026. Zero-hallucination Gemini Vision Medical Prompt.</p>
   </footer>
 
-  <script src="/js/api.js"></script>
-  <script src="/js/patient-manager.js"></script>
-  <script src="/js/app.js"></script>
-  <script src="/js/ct-client.js"></script>
+  <script src="/js/api.js?v=2.2"></script>
+  <script src="/js/patient-manager.js?v=2.2"></script>
+  <script src="/js/app.js?v=2.2"></script>
+  <script src="/js/ct-client.js?v=2.2"></script>
 </body>
 </html>
 

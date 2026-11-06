@@ -131,12 +131,47 @@ const XRayClient = {
     if (rejectionBox) {
       const detected = data.detectedImageType || 'Clinical document or non-radiological photo';
       const warningText = data.warning || 'The uploaded file does not exhibit radiographic characteristics (bone attenuation, skeletal projection).';
+      
+      const badgeEl = document.getElementById('xrayDetectedBadge');
+      if (badgeEl) {
+        badgeEl.innerHTML = `<span class="badge badge-amber" style="font-size: 0.8rem; padding: 0.35rem 0.75rem;">Specimen Detected: ${detected}</span>`;
+      }
+
       if (rejectMsgEl) {
-        rejectMsgEl.innerHTML = `<strong>${warningText}</strong><br><span style="font-size: 0.82rem; color: var(--text-muted); margin-top: 4px; display: inline-block;">Detected content: <span style="color: var(--amber-primary); font-weight: 600;">${detected}</span></span>`;
+        rejectMsgEl.innerHTML = `<strong>${warningText}</strong>`;
       }
       if (rejectGuidanceEl) {
         rejectGuidanceEl.textContent = data.patientGuidance || 'Please upload an authentic medical X-ray radiograph in PNG, JPG, or DICOM format (e.g. Chest, Hand, Wrist, Knee, Hip, Shoulder). For prescriptions, please use the Prescription Digitizer.';
       }
+
+      const actionsEl = document.getElementById('xrayRejectionActions');
+      if (actionsEl) {
+        const isDoc = detected.toLowerCase().includes('prescription') || detected.toLowerCase().includes('document');
+        const isCt = detected.toLowerCase().includes('ct') || detected.toLowerCase().includes('mri');
+        if (isDoc) {
+          actionsEl.innerHTML = `
+            <a href="/prescription.html" class="btn btn-teal btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600;">
+              <span>📝</span> Switch to Doctor Prescription OCR & Digitizer
+            </a>
+          `;
+        } else if (isCt) {
+          actionsEl.innerHTML = `
+            <a href="/ct-scan.html" class="btn btn-cyan btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600;">
+              <span>🔬</span> Switch to CT Clinical Vision & Differential Findings
+            </a>
+          `;
+        } else {
+          actionsEl.innerHTML = `
+            <a href="/prescription.html" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+              <span>📝</span> Prescription Reader
+            </a>
+            <a href="/ct-scan.html" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+              <span>🔬</span> CT Clinical Vision
+            </a>
+          `;
+        }
+      }
+
       rejectionBox.style.display = 'block';
     }
 
@@ -145,6 +180,11 @@ const XRayClient = {
   },
 
   renderResults(data) {
+    if (!data || data.isRadiograph === false || data.anatomicalRegion === 'Not a Medical X-Ray' || (data.anatomicalRegion && data.anatomicalRegion.toLowerCase().includes('not a medical'))) {
+      this.renderRejection(data, 'not a proper image to scan');
+      return;
+    }
+
     const container = document.getElementById('xrayResultsContainer');
     const emptyState = document.getElementById('xrayEmptyState');
     const rejectionBox = document.getElementById('xrayRejectionBox');

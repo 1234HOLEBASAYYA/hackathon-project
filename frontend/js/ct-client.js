@@ -85,23 +85,22 @@ const CTClient = {
 
       const response = await window.API.analyzeCTScan(formData);
 
-      if (response.status !== 'success') {
+      const data = response.data || {};
+      if (response.status !== 'success' || data.isCompatibleCtScan === false) {
         const errorMsg = response.message || 'not a proper image to scan';
-        this.renderRejection(response.data || {}, errorMsg);
+        this.renderRejection(data, 'not a proper image to scan');
         window.App.showToast(`❌ ${errorMsg}`, 'error');
         return;
       }
 
-      this.currentResult = response.data;
-      this.renderResults(response.data);
+      this.currentResult = data;
+      this.renderResults(data);
       window.App.showToast('CT scan findings structured and persisted to MongoDB!', 'success');
 
     } catch (err) {
       console.error(err);
-      const isProper = err.message && (err.message.includes('not a proper') || err.message.includes('Incompatible') || err.message.includes('prescription_doc'));
-      const msg = isProper ? 'not a proper image to scan' : err.message;
-      this.renderRejection({}, msg);
-      window.App.showToast(`❌ ${msg}`, 'error');
+      this.renderRejection({}, 'not a proper image to scan');
+      window.App.showToast(`❌ not a proper image to scan`, 'error');
     } finally {
       if (loadingState) loadingState.style.display = 'none';
       if (previewContainer) previewContainer.classList.remove('scanning');
@@ -114,6 +113,9 @@ const CTClient = {
     const rejectionBox = document.getElementById('ctRejectionBox');
     const validFindings = document.getElementById('ctValidFindings');
     const rejectMsgEl = document.getElementById('ctRejectionMessage');
+    const rejectGuidanceEl = document.getElementById('ctRejectionGuidance');
+    const badgeEl = document.getElementById('ctDetectedBadge');
+    const actionsEl = document.getElementById('ctRejectionActions');
     const downloadBtn = document.getElementById('ctDownloadBtn');
     const printBtn = document.getElementById('ctPrintBtn');
 
@@ -122,9 +124,68 @@ const CTClient = {
     if (printBtn) printBtn.style.display = 'none';
 
     if (rejectionBox) {
-      if (rejectMsgEl) {
-        rejectMsgEl.innerHTML = `<strong>The uploaded file is not a valid CT scan image.</strong><br><span style="font-size: 0.82rem; color: var(--text-muted); margin-top: 4px; display: inline-block;">Please upload an authentic CT axial slice or scout view. For prescriptions, please use the Doctor Prescription Digitizer workspace.</span>`;
+      const modality = (data.detectedModality || '').toLowerCase();
+      let badgeLabel = 'Specimen Incompatible with CT';
+      let badgeClass = 'badge-rose';
+
+      if (modality === 'mri') {
+        badgeLabel = 'Magnetic Resonance Imaging (Brain/Spine MRI) Detected';
+        badgeClass = 'badge-purple';
+      } else if (modality === 'xray') {
+        badgeLabel = 'Plain 2D Radiograph (X-Ray) Detected';
+        badgeClass = 'badge-teal';
+      } else if (modality === 'prescription_doc' || modality.includes('prescription')) {
+        badgeLabel = 'Doctor Prescription Document Detected';
+        badgeClass = 'badge-amber';
+      } else if (modality === 'photograph') {
+        badgeLabel = 'Non-Medical Color Photo Detected';
+        badgeClass = 'badge-rose';
       }
+
+      if (badgeEl) {
+        badgeEl.innerHTML = `<span class="badge ${badgeClass}" style="font-size: 0.8rem; padding: 0.35rem 0.75rem;">${badgeLabel}</span>`;
+      }
+
+      if (rejectMsgEl) {
+        const warning = data.incompatibilityReason || data.warning || 'The uploaded file is not an authentic CT scan slice.';
+        rejectMsgEl.innerHTML = `<strong>${warning}</strong>`;
+      }
+
+      if (rejectGuidanceEl) {
+        rejectGuidanceEl.textContent = data.patientGuidance || 'Please upload an authentic axial CT scan slice, helical reconstruction, or scout view in PNG, JPG, or DICOM format.';
+      }
+
+      if (actionsEl) {
+        if (modality === 'xray') {
+          actionsEl.innerHTML = `
+            <a href="/xray.html" class="btn btn-purple btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600;">
+              <span>🔬</span> Switch to Multi-Region X-Ray Diagnostic AI
+            </a>
+          `;
+        } else if (modality === 'prescription_doc' || modality.includes('prescription')) {
+          actionsEl.innerHTML = `
+            <a href="/prescription.html" class="btn btn-teal btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600;">
+              <span>📝</span> Switch to Doctor Prescription OCR & Digitizer
+            </a>
+          `;
+        } else if (modality === 'mri') {
+          actionsEl.innerHTML = `
+            <a href="/dashboard.html" class="btn btn-cyan btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 600;">
+              <span>📋</span> View Patient Clinical Timeline
+            </a>
+          `;
+        } else {
+          actionsEl.innerHTML = `
+            <a href="/xray.html" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+              <span>🔬</span> X-Ray Diagnostic AI
+            </a>
+            <a href="/prescription.html" class="btn btn-outline btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+              <span>📝</span> Prescription Reader
+            </a>
+          `;
+        }
+      }
+
       rejectionBox.style.display = 'block';
     }
 
@@ -133,6 +194,11 @@ const CTClient = {
   },
 
   renderResults(data) {
+    if (!data || data.isCompatibleCtScan === false) {
+      this.renderRejection(data, 'not a proper image to scan');
+      return;
+    }
+
     const container = document.getElementById('ctResultsContainer');
     const emptyState = document.getElementById('ctEmptyState');
     const rejectionBox = document.getElementById('ctRejectionBox');

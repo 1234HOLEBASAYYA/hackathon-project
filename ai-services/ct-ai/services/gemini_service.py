@@ -53,71 +53,76 @@ class GeminiIncompatibleModalityError(GeminiAnalysisError):
 # Standard Prompt strictly following Clinical AI guidelines
 GEMINI_ANALYSIS_PROMPT = """
 You are an expert AI clinical imaging assistant operating within the MedVision-AI Decision Support System.
-You are tasked with conducting an objective, visual-only analysis of the uploaded medical imaging file (e.g., CT slice, scout view, or radiograph).
+You are tasked with conducting an objective, visual-only analysis of the uploaded medical imaging file.
 
-STRICT RADIOLOGICAL & CLINICAL INSTRUCTIONS:
-1. MODALITY VERIFICATION & DOCUMENT GUARDRAIL:
-   - FIRST evaluate if the image is a valid radiological study (CT scan slice, scout view, plain radiograph).
-   - If the image is a MEDICAL PRESCRIPTION, HANDWRITTEN DOCTOR NOTE, PHARMACEUTICAL SLIP, or NON-RADIOLOGICAL DOCUMENT:
-     You MUST set "is_compatible_ct_scan": false and "detected_modality": "prescription_doc".
-     Do NOT extract medicines into CT anatomical observations!
-     Set "report_title": "Incompatible Image - Prescription Document Detected",
-     "incompatibility_reason": "Image is a handwritten medical prescription document and cannot be processed as a radiological CT scan."
-   - If the image is a valid CT scan or radiograph, set "is_compatible_ct_scan": true and "detected_modality": "ct_scan".
+CRITICAL FIRST STEP — SPECIMEN MODALITY EVALUATION:
+You must strictly inspect and classify the uploaded image into one of these exact categories:
+1. "ct_scan": Authentic Computed Tomography axial slice, scout view, lung window, bone window, or soft-tissue window exhibiting cross-sectional X-ray attenuation.
+   -> ONLY if the image is an authentic CT scan, set "is_compatible_ct_scan": true and "detected_modality": "ct_scan".
 
-2. ANALYZE VISIBLE CONTENT ONLY: Describe only anatomical and density structures clearly visible in this specific uploaded 2D image.
-3. DISTINGUISH OBSERVATIONS FROM INTERPRETATIONS:
-   - A 'visual observation' is an objective physical feature (e.g., "hyperdense area in left lung base", "well-corticated osseous margin").
-   - A 'potential finding' is a non-definitive interpretation that warrants clinical correlation (e.g., "suggestive of consolidation or atelectasis").
-4. DO NOT PROVIDE DEFINITIVE MEDICAL DIAGNOSES: Never state "diagnosis confirmed", "100% accurate", "definitely cancer", or "definitely normal".
-5. UNCERTAINTY & LIMITATIONS:
-   - Explicitly note that a single 2D image cannot replace a complete axial volumetric CT study (which typically contains hundreds of sequential slices with multiple kernel reconstructions).
-   - If image resolution, contrast, or artifacts obscure anatomical details, state this clearly in image_quality and limitations.
-6. NO HALLUCINATION: Do NOT invent patient history, symptoms, laboratory values, precise metric measurements, or artificial confidence percentages.
-7. STRUCTURED JSON OUTPUT: You MUST return a single, valid JSON object with the exact keys specified below.
+2. "mri": Magnetic Resonance Imaging (e.g., Brain MRI, Spine MRI, Musculoskeletal MRI) characterized by high soft-tissue contrast, ventricular definition, gyral differentiation, and radiofrequency T1/T2/FLAIR proton relaxation intensities.
+   -> IMPORTANT: A Brain MRI or any MRI image MUST NEVER be classified as a CT scan!
+   -> Set "is_compatible_ct_scan": false and "detected_modality": "mri".
+   -> Set "incompatibility_reason": "Specimen identified as Magnetic Resonance Imaging (MRI). MRI measures radiofrequency proton relaxation, whereas Computed Tomography (CT) measures X-ray beam attenuation. Please correlate with a certified neuro-radiologist."
+
+3. "xray": Plain projection radiograph (e.g., Chest X-ray, Skeletal Radiograph, Extremity Film) displaying 2D superimposed skeletal or thoracic silhouettes.
+   -> Set "is_compatible_ct_scan": false and "detected_modality": "xray".
+   -> Set "incompatibility_reason": "Specimen is a 2D projection radiograph (X-ray), not a cross-sectional CT scan. Please submit this image to the Multi-Region X-Ray Diagnostic AI module."
+
+4. "prescription_doc": Medical prescription, doctor consultation slip, pharmacy note, or handwritten clinical order.
+   -> Set "is_compatible_ct_scan": false and "detected_modality": "prescription_doc".
+   -> Set "incompatibility_reason": "Specimen is a medical prescription document or clinical note. Please submit this document to the Doctor Prescription OCR & Digitizer module."
+
+5. "photograph": Non-medical photograph (e.g., selfie, human portrait, landscape, pet, car, room, screenshot, or artwork).
+   -> Set "is_compatible_ct_scan": false and "detected_modality": "photograph".
+   -> Set "incompatibility_reason": "Non-radiological photographic image. Lacks medical attenuation or cross-sectional internal tissue density."
+
+6. "unknown": Any image that does not clearly belong to the above categories or cannot be verified.
+   -> Set "is_compatible_ct_scan": false and "detected_modality": "unknown".
+   -> Set "incompatibility_reason": "Unable to verify radiological CT characteristics. Not a proper image to scan."
+
+FURTHER CLINICAL INSTRUCTIONS:
+- ANALYZE VISIBLE CONTENT ONLY: Objectively describe visible densities, contours, or textual elements.
+- DISTINGUISH OBSERVATIONS FROM INTERPRETATIONS:
+  - Observation: Physical density/appearance (e.g., "Hypodense circular parenchymal area", "Well-defined cortical perimeter", "Printed prescription header").
+  - Potential finding: Non-definitive differential consideration (e.g., "Suggestive of edema or ischemic change", "Indicates handwritten medication order").
+- NO DEFINITIVE MEDICAL DIAGNOSES: Never state "diagnosis confirmed" or "definitely cancer".
+- UNCERTAINTY & LIMITATIONS: Note that single-slice assessment cannot replace full volumetric CT series.
+- STRUCTURED JSON OUTPUT: You MUST return a single, valid JSON object with the exact schema below.
 
 REQUIRED JSON SCHEMA:
 {
-  "is_compatible_ct_scan": true,
-  "detected_modality": "ct_scan",
-  "incompatibility_reason": "",
-  "report_title": "AI-Assisted CT Image Analysis Report",
+  "is_compatible_ct_scan": boolean,
+  "detected_modality": "ct_scan" | "mri" | "xray" | "prescription_doc" | "photograph" | "unknown",
+  "incompatibility_reason": string,
+  "report_title": string,
   "image_information": {
-    "image_type": "Visually identifiable modality (e.g., Axial Chest CT Slice, Scout View, Plain Radiograph, or Handwritten Medical Prescription Document)",
-    "image_dimensions": "Extracted or observed dimensions",
-    "image_quality": "Assessment of visual clarity, contrast resolution, motion blur, or artifacts",
-    "limitations": [
-      "Evaluation limited to single uploaded image slice",
-      "Lack of volumetric series and soft tissue windowing"
-    ]
+    "image_type": string,
+    "image_dimensions": string,
+    "image_quality": string,
+    "limitations": [string]
   },
   "visual_observations": [
     {
-      "observation": "Concise title of visible physical appearance",
-      "location": "Visible anatomical location (e.g., Left lower thoracic zone, Costophrenic angle, or Unknown if unidentifiable)",
-      "description": "Objective description of density, margin, lucency, or opacity",
+      "observation": string,
+      "location": string,
+      "description": string,
       "certainty": "observed"
     }
   ],
   "potential_findings": [
     {
-      "finding": "Possible clinical consideration",
-      "description": "Differential reasoning based strictly on the visual observation",
-      "location": "Anatomical location if identifiable",
+      "finding": string,
+      "description": string,
+      "location": string,
       "certainty": "uncertain",
-      "supporting_visual_observation": "The specific visual observation that suggested this possibility"
+      "supporting_visual_observation": string
     }
   ],
-  "summary": "Clear, grounded 2-3 sentence overview of visible features and clinical review recommendations.",
-  "recommendations_for_review": [
-    "Formal interpretation by a qualified radiologist",
-    "Clinical correlation with patient symptoms and lab results"
-  ],
-  "limitations": [
-    "Analysis based on a standalone single image",
-    "Absence of clinical history, prior comparison studies, and complete slice volume"
-  ],
-  "medical_disclaimer": "This AI-generated report is for educational and decision-support purposes and is not a substitute for formal interpretation by a board-certified radiologist or qualified physician."
+  "summary": string,
+  "recommendations_for_review": [string],
+  "limitations": [string],
+  "medical_disclaimer": string
 }
 
 Respond ONLY with the JSON object. Do not include markdown code blocks, backticks, or preamble text.
@@ -171,19 +176,42 @@ def validate_and_normalize_report(report_dict: Dict[str, Any], file_name: str, d
         image_info = {}
 
     # Modality & Document Incompatibility Guardrail
-    is_compatible = report_dict.get("is_compatible_ct_scan", True)
-    detected_mod = str(report_dict.get("detected_modality", "")).lower()
+    is_compatible = bool(report_dict.get("is_compatible_ct_scan", True))
+    detected_mod = str(report_dict.get("detected_modality", "ct_scan")).lower().strip()
     img_type = str(image_info.get("image_type", "")).lower()
     rep_title = str(report_dict.get("report_title", "")).lower()
 
-    if not is_compatible or detected_mod == "prescription_doc" or "prescription" in img_type or "prescription" in rep_title:
-        raise GeminiIncompatibleModalityError(
-            detected_modality="prescription_doc",
-            message="not a proper image to scan"
-        )
+    # Enforce strict categorization: Brain MRI, Plain X-Ray, Prescriptions, Photos are NOT compatible CT scans
+    if "mri" in detected_mod or "magnetic resonance" in img_type or "mri" in img_type:
+        detected_mod = "mri"
+        is_compatible = False
+    elif "prescription" in detected_mod or "prescription" in img_type or "prescription" in rep_title:
+        detected_mod = "prescription_doc"
+        is_compatible = False
+    elif "xray" in detected_mod or "radiograph" in img_type or "chest x-ray" in img_type:
+        detected_mod = "xray"
+        is_compatible = False
+    elif "photo" in detected_mod or "photograph" in img_type:
+        detected_mod = "photograph"
+        is_compatible = False
+    elif detected_mod not in ("ct_scan", "ct", "computed_tomography"):
+        is_compatible = False
+
+    incompatibility_reason = report_dict.get("incompatibility_reason", "")
+    if not is_compatible and not incompatibility_reason:
+        if detected_mod == "mri":
+            incompatibility_reason = "Specimen identified as Magnetic Resonance Imaging (MRI). MRI measures radiofrequency proton relaxation, whereas Computed Tomography (CT) measures X-ray beam attenuation."
+        elif detected_mod == "xray":
+            incompatibility_reason = "Specimen is a 2D projection radiograph (X-ray), not a cross-sectional CT scan."
+        elif detected_mod == "prescription_doc":
+            incompatibility_reason = "Specimen is a medical prescription document, not a radiological CT scan."
+        else:
+            incompatibility_reason = "The uploaded file does not exhibit cross-sectional radiological CT characteristics."
 
     # Required top-level keys
-    report_title = report_dict.get("report_title", "AI-Assisted CT Image Analysis Report")
+    report_title = report_dict.get("report_title")
+    if not report_title:
+        report_title = "AI-Assisted CT Image Analysis Report" if is_compatible else f"Incompatible Specimen Advisory: {detected_mod.replace('_', ' ').title()}"
 
     image_info.setdefault("image_type", "Unknown unless visually identifiable")
     image_info["image_dimensions"] = dimensions_str or image_info.get("image_dimensions", "Unknown")
@@ -257,8 +285,9 @@ def validate_and_normalize_report(report_dict: Dict[str, Any], file_name: str, d
 
     return {
         "report_title": report_title,
-        "is_compatible_ct_scan": True,
-        "detected_modality": "ct_scan",
+        "is_compatible_ct_scan": is_compatible,
+        "detected_modality": detected_mod,
+        "incompatibility_reason": incompatibility_reason if not is_compatible else "",
         "filename": file_name,
         "image_information": image_info,
         "visual_observations": normalized_obs,

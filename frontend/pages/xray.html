@@ -97,13 +97,22 @@
             
             <!-- Rejection Alert Box for Non-X-Ray Images -->
             <div id="xrayRejectionBox" style="display: none; background: rgba(241, 108, 120, 0.08); border: 1px solid rgba(241, 108, 120, 0.35); border-radius: var(--radius-md); padding: 1.5rem; text-align: center; margin-bottom: 1.25rem;">
-              <div style="font-size: 2.5rem; margin-bottom: 0.5rem;">❌</div>
+              <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">⚠️</div>
               <h3 style="color: var(--rose-primary); font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">not a proper image to scan</h3>
+              <div id="xrayDetectedBadge" style="margin-bottom: 0.6rem; display: inline-flex;"></div>
               <p id="xrayRejectionMessage" style="color: var(--text-primary); font-size: 0.9rem; margin-bottom: 0.75rem;">
                 The uploaded image is not a medical X-ray radiograph.
               </p>
               <div style="background: var(--bg-surface-elevated); padding: 0.85rem; border-radius: var(--radius-sm); border: 1px solid var(--border-subtle); font-size: 0.8125rem; color: var(--text-secondary); text-align: left;">
                 <strong style="color: var(--teal-primary);">Clinical Guidance:</strong> <span id="xrayRejectionGuidance">Please upload an authentic medical X-ray radiograph (e.g. Chest, Hand, Wrist, Knee, Hip, Shoulder) in PNG, JPG, or DICOM format. For prescription documents, please use the Doctor Prescription Digitizer workspace.</span>
+              </div>
+              <div id="xrayRejectionActions" style="margin-top: 1.25rem; display: flex; gap: 0.75rem; justify-content: center; flex-wrap: wrap;">
+                <a href="/prescription.html" class="btn btn-teal btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                  <span>📝</span> Switch to Prescription OCR
+                </a>
+                <a href="/ct-scan.html" class="btn btn-cyan btn-sm" style="display: inline-flex; align-items: center; gap: 0.4rem;">
+                  <span>🔬</span> Switch to CT Clinical Vision
+                </a>
               </div>
             </div>
 
@@ -113,8 +122,8 @@
               <div style="display: flex; gap: 0.75rem; margin-bottom: 1.25rem; flex-wrap: wrap;">
                 <span id="xrayStatus" class="badge badge-rose">DEFECT DETECTED</span>
                 <span class="badge badge-teal">Region: <strong id="xrayRegion" style="margin-left: 4px;">Wrist</strong></span>
-                <span class="badge badge-purple" id="xrayRegionConfBadge"><span id="xrayRegionConf">85% match</span></span>
-                <span class="badge badge-cyan" id="xrayModelBadge">ResNet-18 MSK</span>
+                <span class="badge badge-purple" id="xrayRegionConfBadge" style="display: none;"><span id="xrayRegionConf"></span></span>
+                <span class="badge badge-cyan" id="xrayModelBadge">Multi-Task ResNet-18 MSK</span>
               </div>
 
               <!-- Affected Structure & Clinical Impression -->
@@ -173,15 +182,7 @@
           </div>
 
           <div id="xrayEmptyState" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
-            <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🩻</div>
-            <p>Upload a radiograph to begin automated region classification and fracture localization.</p>
-          </div>
-
-        </div>
-      </section>
-
-          <div id="xrayEmptyState" style="text-align: center; padding: 3rem 1rem; color: var(--text-muted);">
-            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🩻</div>
+            <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🔬</div>
             <p>Upload a radiograph to begin automated region classification and fracture localization.</p>
           </div>
 
@@ -195,10 +196,10 @@
     <p>MEDVISION-AI Radiography &copy; 2026. PyTorch ResNet-18 MSK Detector + TorchXRayVision DenseNet-121.</p>
   </footer>
 
-  <script src="/js/api.js"></script>
-  <script src="/js/patient-manager.js"></script>
-  <script src="/js/app.js"></script>
-  <script src="/js/xray-client.js"></script>
+  <script src="/js/api.js?v=2.2"></script>
+  <script src="/js/patient-manager.js?v=2.2"></script>
+  <script src="/js/app.js?v=2.2"></script>
+  <script src="/js/xray-client.js?v=2.2"></script>
 </body>
 </html>
 
