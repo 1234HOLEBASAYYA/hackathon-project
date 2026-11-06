@@ -80,8 +80,9 @@ async function getPatientTimeline(req, res, next) {
   try {
     const { patientId } = req.params;
 
-    // Search by both patientId and patient fields for full compatibility
-    const [analyses, prescriptions] = await Promise.all([
+    // Search patient demographics and historical records across all modalities
+    const [patient, analyses, prescriptions] = await Promise.all([
+      Patient.findOne({ patientId }),
       AnalysisResult.find({
         $or: [{ patientId }, { patient: patientId }]
       }).sort({ createdAt: -1 }),
@@ -92,6 +93,7 @@ async function getPatientTimeline(req, res, next) {
 
     return successResponse(res, {
       patientId,
+      patient: patient || { patientId, name: 'Patient ' + patientId },
       totalAnalyses: analyses.length,
       totalPrescriptions: prescriptions.length,
       analyses,
