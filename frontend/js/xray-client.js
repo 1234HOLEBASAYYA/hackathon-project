@@ -88,13 +88,14 @@ const XRayClient = {
       // Check for backend rejection of non-X-ray images
       if (response.status !== 'success') {
         const errorMsg = response.message || 'not a proper image to scan';
-        this.renderRejection(response.data || {}, errorMsg);
+        this.renderRejection(response.details || response.data || {}, errorMsg);
         window.App.showToast(`❌ ${errorMsg}`, 'error');
         return;
       }
 
       const data = response.data || {};
-      if (data.isRadiograph === false || data.anatomicalRegion === 'Not a Medical X-Ray') {
+      const reg = (data.anatomicalRegion || '').toLowerCase();
+      if (data.isRadiograph === false || reg === 'not a medical x-ray' || reg.includes('not a medical') || data.status === 'not_an_xray') {
         this.renderRejection(data, 'not a proper image to scan');
         window.App.showToast('❌ not a proper image to scan', 'error');
         return;
@@ -180,8 +181,9 @@ const XRayClient = {
   },
 
   renderResults(data) {
-    if (!data || data.isRadiograph === false || data.anatomicalRegion === 'Not a Medical X-Ray' || (data.anatomicalRegion && data.anatomicalRegion.toLowerCase().includes('not a medical'))) {
-      this.renderRejection(data, 'not a proper image to scan');
+    const reg = (data && data.anatomicalRegion ? data.anatomicalRegion : '').toLowerCase();
+    if (!data || data.isRadiograph === false || reg === 'not a medical x-ray' || reg.includes('not a medical') || data.status === 'not_an_xray') {
+      this.renderRejection(data || {}, 'not a proper image to scan');
       return;
     }
 

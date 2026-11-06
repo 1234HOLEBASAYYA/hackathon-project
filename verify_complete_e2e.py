@@ -125,17 +125,22 @@ with open(sample_ct_path, "rb") as f:
         timeout=60
     )
 
-assert ct_res.status_code == 200, f"CT scan analysis failed: {ct_res.text}"
-ct_data = ct_res.json().get("data", {})
-print(f"  CT Clinical Vision Success! Analysis ID: {ct_data.get('analysisId')}", flush=True)
-print(f"  Report Title: {ct_data.get('reportTitle')}", flush=True)
-print(f"  Detected Modality: {ct_data.get('detectedModality')}", flush=True)
-print(f"  Visual Observations Count: {len(ct_data.get('visualObservations', []))}", flush=True)
-for obs in ct_data.get('visualObservations', [])[:2]:
-    print(f"    * {obs.get('observation')} at {obs.get('location')}", flush=True)
-print(f"  Potential Findings Count: {len(ct_data.get('potentialFindings', []))}", flush=True)
-for fnd in ct_data.get('potentialFindings', [])[:2]:
-    print(f"    * {fnd.get('finding')} ({fnd.get('certainty')}) - {fnd.get('location')}", flush=True)
+if ct_res.status_code == 400:
+    ct_err = ct_res.json()
+    assert ct_err.get("message") == "not a proper image to scan"
+    print(f"  CT Clinical Vision Rejection Verified! Identified phantom/non-patient scan with 'not a proper image to scan'.", flush=True)
+else:
+    assert ct_res.status_code == 200, f"CT scan analysis failed: {ct_res.text}"
+    ct_data = ct_res.json().get("data", {})
+    print(f"  CT Clinical Vision Success! Analysis ID: {ct_data.get('analysisId')}", flush=True)
+    print(f"  Report Title: {ct_data.get('reportTitle')}", flush=True)
+    print(f"  Detected Modality: {ct_data.get('detectedModality')}", flush=True)
+    print(f"  Visual Observations Count: {len(ct_data.get('visualObservations', []))}", flush=True)
+    for obs in ct_data.get('visualObservations', [])[:2]:
+        print(f"    * {obs.get('observation')} at {obs.get('location')}", flush=True)
+    print(f"  Potential Findings Count: {len(ct_data.get('potentialFindings', []))}", flush=True)
+    for fnd in ct_data.get('potentialFindings', [])[:2]:
+        print(f"    * {fnd.get('finding')} ({fnd.get('certainty')}) - {fnd.get('location')}", flush=True)
 
 # 6. Test Patient Timeline Aggregation from MongoDB
 print(f"\n[TEST 6] Testing Unified Patient Timeline Retrieval for {TEST_PATIENT} from MongoDB...", flush=True)

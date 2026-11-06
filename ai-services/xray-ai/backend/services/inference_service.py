@@ -81,15 +81,20 @@ class InferenceService:
         else:
             print("Warning: Chest Analyzer weights not found.")
             
-        # 4. Visual Text & Document Verification OCR Engine
-        self.ocr_reader = None
-        try:
-            import easyocr
-            use_gpu = torch.cuda.is_available() and device != "cpu"
-            self.ocr_reader = easyocr.Reader(['en'], gpu=use_gpu)
-            print(f"Visual Text Authenticity Engine initialized (GPU={use_gpu}).")
-        except Exception as e:
-            print(f"Warning: OCR engine initialization error: {e}")
+        # 4. Visual Text & Document Verification OCR Engine (Lazy-loaded if needed)
+        self._ocr_reader = None
+
+    @property
+    def ocr_reader(self):
+        if self._ocr_reader is None:
+            try:
+                import easyocr
+                use_gpu = torch.cuda.is_available() and self.device != "cpu"
+                self._ocr_reader = easyocr.Reader(['en'], gpu=use_gpu)
+                print(f"Visual Text Authenticity Engine initialized (GPU={use_gpu}).")
+            except Exception as e:
+                print(f"Warning: OCR engine initialization error: {e}")
+        return self._ocr_reader
 
     def analyze_radiograph(self, image_path: Path) -> dict:
         analysis_id = str(uuid.uuid4())[:12]
@@ -104,7 +109,52 @@ class InferenceService:
         except Exception as e:
             raise ValueError(f"Invalid or corrupted image format: {e}")
 
-        # 2. Visual Chromatic Analysis (Medical X-rays are monochromatic / grayscale)
+        # 2. Check with Gemini 3.5 Multimodal Diagnostic & Authenticity Verifier FIRST
+        gemini_data = None
+        try:
+            gemini_data = analyze_radiograph_multimodal(image_path)
+        except Exception as e:
+            print(f"[InferenceService] Gemini multimodal call skipped or failed: {e}")
+
+        # If Gemini is active and identifies image as NOT a radiograph, reject immediately (1-2s response)
+        if gemini_data and gemini_data.get("is_radiograph") is False:
+            rejection_type = gemini_data.get("detected_image_type", "Non-medical photograph / graphic")
+            rejection_reason = gemini_data.get("rejection_reason", "This image is not a medical X-ray radiograph.")
+            rejection_obs = gemini_data.get("key_observations", [
+                "The uploaded file does not exhibit radiographic characteristics (bone attenuation, skeletal projection).",
+                "Diagnostic models were not run to prevent inaccurate medical conclusions."
+            ])
+            return {
+                "analysis_id": analysis_id,
+                "timestamp": timestamp,
+                "status": "not_an_xray",
+                "is_radiograph": False,
+                "supported": False,
+                "anatomical_region": "Not a Medical X-Ray",
+                "detected_image_type": rejection_type,
+                "warning": rejection_reason,
+                "is_abnormal": False,
+                "confidence": 0.0,
+                "region_confidence": 0.0,
+                "pipeline_name": "Image Authenticity Verifier",
+                "affected_bone": "N/A",
+                "displacement_assessment": "N/A",
+                "findings": [],
+                "bounding_box_pixels": None,
+                "visual_specimen_url": None,
+                "annotated_image_url": None,
+                "pdf_report_url": None,
+                "clinical_summary": {
+                    "source": "gemini_authenticity_verifier",
+                    "summary": f"Image Rejected: Identified as a {rejection_type}. This platform strictly analyzes medical X-ray radiographs.",
+                    "key_takeaways": rejection_obs,
+                    "patient_guidance": "Please upload an authentic grayscale or DICOM projection radiograph (X-ray) of a body region (Chest, Hand, Wrist, Foot, Leg, Knee, Hip, Shoulder, etc.).",
+                    "gemini_active": True
+                },
+                "limitations": "Only authentic medical X-ray radiographs are supported."
+            }
+
+        # 3. Local Visual Chromatic Analysis (Fallback)
         arr = np.array(orig_rgb)
         diff = np.abs(arr[:, :, 0].astype(float) - arr[:, :, 1].astype(float)) + \
                np.abs(arr[:, :, 1].astype(float) - arr[:, :, 2].astype(float)) + \
@@ -113,11 +163,11 @@ class InferenceService:
         pct_color = float(np.mean(diff > 25.0))
         is_color_photo = (mean_diff > 20.0) or (pct_color > 0.12)
 
-        # 3. Visual Pixel Document & Text Analysis (Inspect actual pixel content directly)
+        # 4. Local Visual Pixel Document & Text Analysis (Fallback)
         is_document = False
         doc_word_count = 0
         doc_detected_sample = []
-        if self.ocr_reader:
+        if not gemini_data and self.ocr_reader:
             try:
                 scale = min(1.0, 900.0 / max(orig_w, orig_h))
                 if scale < 1.0:
@@ -146,13 +196,6 @@ class InferenceService:
                     doc_detected_sample = detected_words[:5]
             except Exception as e:
                 print(f"[InferenceService] Visual OCR check error: {e}")
-
-        # 4. Layer 1: Gemini 3.5 Multimodal Diagnostic Intelligence & X-Ray Authenticity Verifier
-        gemini_data = None
-        try:
-            gemini_data = analyze_radiograph_multimodal(image_path)
-        except Exception as e:
-            print(f"[InferenceService] Gemini multimodal call skipped or failed: {e}")
 
         # Check if image is NOT an X-Ray
         is_not_xray = False

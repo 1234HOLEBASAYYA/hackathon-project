@@ -249,15 +249,31 @@ async def analyze_prescription(payload: AnalyzeRequest) -> PrescriptionResultSch
     )
     quality = prep_result["quality"]
 
-    # 2. AI Deep Learning OCR
-    ocr_result = run_ai_ocr(
-        image=prep_result["processed_image"],
-        prefer_gpu=payload.use_gpu,
-    )
+    extraction = None
+    engine_used = "EasyOCR (CRAFT + BiLSTM)"
+    boxes_dicts = []
 
-    # 3. Structured Field Extraction
-    boxes_dicts = [dict(b) for b in ocr_result["bounding_boxes"]]
-    extraction = parse_prescription(ocr_result["raw_text"], boxes_dicts)
+    # 2. Layer 1: Gemini 3.5 Multimodal Clinical Vision
+    try:
+        from ai.gemini_prescription_service import analyze_prescription_with_gemini
+        gemini_result = analyze_prescription_with_gemini(stored_path)
+        if gemini_result and gemini_result.get("medicines"):
+            extraction = gemini_result
+            engine_used = gemini_result.get("engine_used", "Gemini 3.5 Flash Multimodal Vision")
+            logger.info("[analyze_prescription] Extracted %d medications via Gemini Multimodal Vision.", len(gemini_result["medicines"]))
+    except Exception as exc:
+        logger.warning("[analyze_prescription] Gemini multimodal error: %s. Using local EasyOCR fallback.", exc)
+
+    # 3. Layer 2: Local AI Deep Learning OCR fallback
+    if not extraction:
+        logger.info("[analyze_prescription] Falling back to local EasyOCR + NLP Grammar Parser.")
+        ocr_result = run_ai_ocr(
+            image=prep_result["processed_image"],
+            prefer_gpu=payload.use_gpu,
+        )
+        boxes_dicts = [dict(b) for b in ocr_result["bounding_boxes"]]
+        extraction = parse_prescription(ocr_result["raw_text"], boxes_dicts)
+        engine_used = ocr_result.get("engine_used", engine_used)
 
     now_iso = datetime.now().isoformat()
     result_data: dict[str, Any] = {
@@ -275,8 +291,8 @@ async def analyze_prescription(payload: AnalyzeRequest) -> PrescriptionResultSch
         "quality": quality,
         "bounding_boxes": boxes_dicts,
         "is_verified": False,
-        "notes": extraction["notes"],
-        "engine_used": ocr_result["engine_used"],
+        "notes": extraction.get("notes", []),
+        "engine_used": engine_used,
         "created_at": now_iso,
         "updated_at": now_iso,
     }
@@ -299,8 +315,8 @@ async def analyze_prescription(payload: AnalyzeRequest) -> PrescriptionResultSch
         quality=ImageQualitySchema(**quality),
         bounding_boxes=[BoundingBoxSchema(**b) for b in boxes_dicts],
         is_verified=False,
-        notes=extraction["notes"],
-        engine_used=ocr_result["engine_used"],
+        notes=extraction.get("notes", []),
+        engine_used=engine_used,
         created_at=now_iso,
         updated_at=now_iso,
     )

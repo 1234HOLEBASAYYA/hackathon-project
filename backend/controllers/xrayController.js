@@ -31,7 +31,8 @@ async function handleXRayAnalysis(req, res, next) {
     const aiResult = await analyzeXRay(filePath, originalFilename, patientId);
 
     // Reject non-X-Ray images (prescriptions, clinical documents, photographs, selfies, etc.)
-    if (aiResult.is_radiograph === false || aiResult.status === 'not_an_xray' || aiResult.anatomical_region === 'Not a Medical X-Ray') {
+    const regLower = (aiResult.anatomical_region || '').toLowerCase();
+    if (aiResult.is_radiograph === false || aiResult.status === 'not_an_xray' || regLower === 'not a medical x-ray' || regLower.includes('not a medical')) {
       const rejectReason = aiResult.warning || aiResult.clinical_summary?.summary || 'The uploaded file is not a medical X-ray radiograph.';
       return errorResponse(res, 'not a proper image to scan', 400, {
         isRadiograph: false,

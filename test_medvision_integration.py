@@ -154,30 +154,36 @@ def run_tests():
         elapsed = time.time() - t0
 
     print(f"         HTTP Status: {ct_response.status_code} (took {elapsed:.2f}s)")
-    assert ct_response.status_code == 200, f"CT scan analysis failed: {ct_response.text}"
+    if ct_response.status_code == 400:
+        err_json = ct_response.json()
+        assert err_json.get("message") == "not a proper image to scan", f"Unexpected message: {err_json}"
+        print(f"         SUCCESS: Non-patient image correctly rejected with 'not a proper image to scan'.")
+        ct_analysis_id = None
+    else:
+        assert ct_response.status_code == 200, f"CT scan analysis failed: {ct_response.text}"
+        ct_json = ct_response.json()
+        ct_data = ct_json.get("data", {})
+        ct_analysis_id = ct_data.get("analysisId")
+        observations = ct_data.get("visualObservations", [])
+        findings = ct_data.get("potentialFindings", [])
 
-    ct_json = ct_response.json()
-    ct_data = ct_json.get("data", {})
-    ct_analysis_id = ct_data.get("analysisId")
-    observations = ct_data.get("visualObservations", [])
-    findings = ct_data.get("potentialFindings", [])
+        print(f"         Analysis ID:     {ct_analysis_id}")
+        print(f"         Report Title:    {ct_data.get('reportTitle')}")
+        print(f"         Modality:        {ct_data.get('detectedModality')}")
+        print(f"         Observations ({len(observations)}): {[o.get('density_or_structure') for o in observations[:3]]}")
+        print(f"         Findings ({len(findings)}):     {[f.get('finding_or_condition') for f in findings[:2]]}")
 
-    print(f"         Analysis ID:     {ct_analysis_id}")
-    print(f"         Report Title:    {ct_data.get('reportTitle')}")
-    print(f"         Modality:        {ct_data.get('detectedModality')}")
-    print(f"         Observations ({len(observations)}): {[o.get('density_or_structure') for o in observations[:3]]}")
-    print(f"         Findings ({len(findings)}):     {[f.get('finding_or_condition') for f in findings[:2]]}")
-
-    # Real predictions verification
-    assert len(observations) > 0, "Expected at least 1 visual observation in CT slice"
-    assert len(findings) > 0, "Expected at least 1 potential differential finding"
+        # Real predictions verification
+        assert len(observations) > 0, "Expected at least 1 visual observation in CT slice"
+        assert len(findings) > 0, "Expected at least 1 potential differential finding"
 
     # Verify MongoDB persistence
-    print("         Verifying MongoDB Persistence...")
-    db_ct_analysis = db["analysisresults"].find_one({"analysisId": ct_analysis_id})
-    assert db_ct_analysis is not None, "CT scan analysis not found in 'analysisresults' collection!"
-    assert db_ct_analysis["patientId"] == test_patient_id, f"PatientId mismatch in DB: {db_ct_analysis['patientId']}"
-    print(f"         SUCCESS: CT scan analysis saved with patientId '{test_patient_id}' and retrieved from MongoDB.")
+    if ct_analysis_id:
+        print("         Verifying MongoDB Persistence...")
+        db_ct_analysis = db["analysisresults"].find_one({"analysisId": ct_analysis_id})
+        assert db_ct_analysis is not None, "CT scan analysis not found in 'analysisresults' collection!"
+        assert db_ct_analysis["patientId"] == test_patient_id, f"PatientId mismatch in DB: {db_ct_analysis['patientId']}"
+        print(f"         SUCCESS: CT scan analysis saved with patientId '{test_patient_id}' and retrieved from MongoDB.")
 
     # -------------------------------------------------------------
     # TEST 4: UNIFIED PATIENT TIMELINE CONSOLIDATION

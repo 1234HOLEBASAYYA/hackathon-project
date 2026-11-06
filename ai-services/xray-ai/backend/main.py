@@ -47,6 +47,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/health")
+@app.get("/api/health")
+async def health_check():
+    return JSONResponse(content={
+        "status": "ok",
+        "service": "xray-ai",
+        "models": ["ResNet-18 MSK", "DenseNet-121 Chest", "Gemini 3.5 Multimodal"]
+    })
+
 # Ensure static directories exist
 STATIC_DIR = Path("backend/static")
 STATIC_UPLOADS = STATIC_DIR / "uploads"
